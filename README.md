@@ -51,6 +51,22 @@ The most functions of GenomicExplorer should work in Windows OS.
 
 Please click "install_genomicexplorer.cmd", "install_optional_R.cmd", and "run_genomicexplorer.cmd" to install and start GenomicExplorer.
 
+## File format
+In GenomicExplorer, several file format for genotype data can be used.
+
+GenomicExplorer expects VCF (Varinat Call Format), PLINK BED or TSV/CSV formats for many genomics applications.
+The genotype TSV/CSV files compose of n (samples as row) x m (markers as column).
+The rownames or first column should be sample (individual) names/IDs.
+The genotype code should be 0/1/2 (1 is heterozygous) for diploids.
+
+The marker (map) TSV/CSV files include marker names/IDs, chromosome names/IDs, and positions in chromosome (BP or cM) as the first three columns.
+
+The phenotype/covariate TSV/CSV files include sample (individual) names/IDs as the rownames or first column. The following columns are treated as phenotypes/covariates.
+
+The some original formats or files may be necessary for Map/QTL, which can be prepared with GenomicExplorer.
+
+For RNA-seq, count data compose of m (genes as row) x n (samples as column) as TSV/CSV formats. Design data compose of n (samples as row) x m (conditions as column) as TSV/CSV formats.
+
 ## How to use GenomicExplorer
 
 GenomicExplorer includes various functions for statistical genomics. These functions are separated as tabs (Preprocess/GP/GWAS/RNA-seq/Map/QTL/Polyploid/Integrate/Sim) in GenomicExplorer.
@@ -63,6 +79,8 @@ The Preprocess tab implements File converter, Genotype Imputation and Phenotype 
 ### GP (Genomic Prediction)
 
 Both single trait and multi-trait models are implemented.
+
+GenomicExplorer mainly depends on BGLR, a popular R package for GP. In addition, RandomForest, an non-linear model, can also be used with GenomicExplorer.
 
 ### GWAS (Genome-Wide Association Study)
 
@@ -78,9 +96,15 @@ For non-model organisms, GO DB (DataBase) builder is also implemented.
 
 Three R packages for linkage map construction can be used in GenomicExplorer.
 
+GenomicExplorer depends on three R packages (ASMap/qtl/onemap) for linkage map construction.
+
+(In future, Lep-MAP3 may be used with GenomicExplorer)
+
 ### QTL
 
 QTL (Quantitative Trait Loci) analysis can be performed with GenomicExplorer.
+
+GenomicExplorer depends on three R packages (qtl/qtl2/qtlbim) for QTL analysis.
 
 ### Polyploid
 
