@@ -1,3 +1,5 @@
+<img width="1834" height="1035" alt="Screenshot from 2026-02-26 16-01-30" src="https://github.com/user-attachments/assets/12250a31-e7f8-42d4-b4e1-4e06d0438198" />
+
 # GenomicExplorer: a GUI software for statistical genomics
 
 GenomicExplorer combines many R and Python packages and third party tools, and utilizes those for statistical genomics. 
