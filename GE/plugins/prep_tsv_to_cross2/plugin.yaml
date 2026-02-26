@@ -1,0 +1,7 @@
+name: TSV -> RQTL2 (cross2)
+version: 0.1.0
+description: Convert genotype.tsv (+ optional marker_map.tsv and phenotype.tsv) to qtl2 cross2 (YAML + CSV files).
+env: conda:QtGwaStation
+runner:
+  language: r
+  entry: runner.R

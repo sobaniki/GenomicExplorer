@@ -1,0 +1,7 @@
+id: map_onemap
+name: "Linkage map (OneMap) - experimental scaffold"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

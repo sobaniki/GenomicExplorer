@@ -1,0 +1,7 @@
+id: gp_multitrait
+name: "Genomic prediction (Multitrait)"
+version: 0.2.0
+
+runner:
+  language: r
+  entry: runner.R

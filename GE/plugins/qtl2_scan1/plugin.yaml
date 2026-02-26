@@ -1,0 +1,7 @@
+id: qtl2_scan1
+name: "QTL (qtl2 scan1 + permutation)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

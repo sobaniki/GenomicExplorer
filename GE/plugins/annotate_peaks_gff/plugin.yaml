@@ -1,0 +1,8 @@
+id: annotate_peaks_gff
+name: "Annotate peaks with GFF genes"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py
+

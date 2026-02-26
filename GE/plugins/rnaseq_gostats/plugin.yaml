@@ -1,0 +1,11 @@
+id: rnaseq_gostats
+name: GO enrichment (GOstats) standalone
+version: 0.1.0
+
+description: >
+  GO over-representation analysis using GOstats.
+  Runs independently from DEG, given a gene list and an optional universe list.
+
+runner:
+  language: r
+  entry: runner.R

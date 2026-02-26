@@ -1,0 +1,7 @@
+id: impute_linkimputer
+name: "Cross-population imputation: LinkImputeR (experimental)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

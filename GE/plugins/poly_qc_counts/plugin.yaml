@@ -1,0 +1,7 @@
+id: poly_qc_counts
+name: "Polyploid: QC/filter read-count matrices"
+version: 0.2.0
+description: Filter PolyCounts by depth/missingness/ref-bias and produce QC report
+runner:
+  language: r
+  entry: runner.R

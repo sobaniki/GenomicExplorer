@@ -1,0 +1,7 @@
+id: poly_polymapr_map
+name: "Polyploid: linkage map prep (MAPpoly / polymapR)"
+version: 0.2.0
+description: Prepare linkage mapping inputs from geno.rds for MAPpoly and/or polymapR.
+runner:
+  language: r
+  entry: runner.R

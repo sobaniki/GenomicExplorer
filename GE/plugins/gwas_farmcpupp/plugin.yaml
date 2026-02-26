@@ -1,0 +1,17 @@
+id: gwas_farmcpupp
+name: "GWAS (FarmCPUpp)"
+description: FarmCPUpp GWAS (best-effort scaffold). Currently stabilized around PLINK input, can be extended.
+version: 0.1.0
+runner:
+  language: r
+  entry: runner.R
+inputs:
+  - phenotype_tsv
+  - trait
+  - plink_prefix
+outputs:
+  - results.tsv
+  - plots/manhattan.png
+  - plots/manhattan.html
+  - plots/qq.png
+  - plots/qq.html

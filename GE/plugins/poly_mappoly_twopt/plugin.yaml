@@ -1,0 +1,7 @@
+id: poly_mappoly_twopt
+name: "Polyploid: MAPpoly two-point"
+version: 0.1.0
+description: Two-point analysis (est_pairwise_rf2) and RF/LOD matrix generation.
+runner:
+  language: r
+  entry: runner.R

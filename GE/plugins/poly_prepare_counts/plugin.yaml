@@ -1,0 +1,7 @@
+id: poly_prepare_counts
+name: "Polyploid: prepare read-count matrices"
+version: 0.2.0
+description: Build PolyCounts from VCF (AD/DP) or ref/total TSVs or cached RDS
+runner:
+  language: r
+  entry: runner.R

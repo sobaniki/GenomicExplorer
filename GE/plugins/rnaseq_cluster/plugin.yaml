@@ -1,0 +1,12 @@
+id: rnaseq_cluster
+name: RNA-seq Clustering + PCA/t-SNE/UMAP
+version: 0.1.0
+
+description: >
+  Sample- and gene-level clustering for RNA-seq expression matrices.
+  Builds a common pipeline: normalization/transform -> feature selection (HVG) -> PCA -> UMAP/t-SNE -> clustering.
+  Outputs embeddings, cluster assignments, and QC plots.
+
+runner:
+  language: r
+  entry: runner.R

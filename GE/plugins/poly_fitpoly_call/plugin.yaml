@@ -1,0 +1,7 @@
+id: poly_fitpoly_call
+name: "Polyploid: fitPoly dosage calling"
+version: 0.1.0
+description: Polyploid module (scaffold)
+runner:
+  language: r
+  entry: runner.R

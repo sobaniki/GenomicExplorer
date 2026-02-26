@@ -1,0 +1,7 @@
+id: poly_qtlpoly_scan
+name: "Polyploid: QTLpoly QTL scan"
+version: 0.2.0
+description: "QTL mapping for autopolyploids using qtlpoly (REMIM). Inputs: qtlpoly_export.rds from mappoly, phenotype TSV. Outputs: peaks.tsv, lod_plot.png."
+runner:
+  language: r
+  entry: runner.R

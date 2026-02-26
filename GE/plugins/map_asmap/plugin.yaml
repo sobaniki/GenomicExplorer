@@ -1,0 +1,7 @@
+id: map_asmap
+name: "Linkage map (ASMap) - MSTmap quick"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

@@ -1,0 +1,7 @@
+id: impute_fsfhap_tassel
+name: "Cross-population imputation: FSFHap (TASSEL external, experimental)"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py

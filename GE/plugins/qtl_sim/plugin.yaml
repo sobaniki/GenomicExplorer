@@ -1,0 +1,8 @@
+id: qtl_sim
+name: "QTL (SIM marker regression, TSV)"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py
+

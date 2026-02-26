@@ -1,0 +1,11 @@
+id: rnaseq_enrich
+name: RNA-seq Enrichment (clusterProfiler ORA / goseq / topGO)
+version: 0.1.0
+
+description: >
+  Gene set / GO enrichment for RNA-seq results.
+  Supports (1) clusterProfiler enrichGO (ORA), (2) goseq (length bias correction), and (3) topGO.
+
+runner:
+  language: r
+  entry: runner.R

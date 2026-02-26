@@ -1,0 +1,7 @@
+id: gp_ranger
+name: "Genomic prediction (ranger) - single-trait RF"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

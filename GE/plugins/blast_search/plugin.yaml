@@ -1,0 +1,7 @@
+id: blast_search
+name: "BLAST search (blastn/blastp/blastx/tblastn/tblastx; local or NCBI remote)"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py

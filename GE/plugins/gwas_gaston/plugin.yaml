@@ -1,0 +1,14 @@
+id: gwas_gaston
+name: "GWAS (gaston)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R
+
+
+outputs:
+  - plots/manhattan.html
+  - plots/manhattan.png
+  - plots/qq.png
+  - plots/qq.html

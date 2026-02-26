@@ -1,0 +1,7 @@
+id: poly_mappoly_map_hmm
+name: "Polyploid: MAPpoly HMM map"
+version: 0.1.0
+description: Estimate phased maps per LG using est_rf_hmm_sequential and optional global error update.
+runner:
+  language: r
+  entry: runner.R

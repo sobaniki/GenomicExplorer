@@ -1,0 +1,7 @@
+id: gp_megalmm
+name: "Genomic prediction (MegaLMM) - multi-trait (scaffold)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

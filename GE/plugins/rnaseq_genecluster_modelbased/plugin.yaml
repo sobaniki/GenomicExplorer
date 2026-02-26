@@ -1,0 +1,13 @@
+id: rnaseq_genecluster_modelbased
+name: RNA-seq Gene Clustering (Model-based)
+version: 0.1.0
+
+description: >
+  Gene-level model-based clustering for RNA-seq count matrices.
+  Default backend: HTSCluster (Poisson mixture models; ICL-based model selection).
+  Optional backends: MBCluster.Seq (archived on CRAN; supported if installed),
+  coseq (Bioconductor), and clusterSeq (Bioconductor; if installed).
+
+runner:
+  language: r
+  entry: runner.R

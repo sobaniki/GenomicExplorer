@@ -1,0 +1,7 @@
+id: prep_vcf_to_tsv
+name: "Preprocess: VCF -> TSV (and bed.matrix)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

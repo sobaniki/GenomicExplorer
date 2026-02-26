@@ -1,0 +1,7 @@
+id: qtl_rqtl_scanone
+name: "QTL (r/qtl scanone HK + permutation)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

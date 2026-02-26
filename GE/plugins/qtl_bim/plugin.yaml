@@ -1,0 +1,21 @@
+name: qtl_bim
+version: 0.1.0
+id: qtl_bim
+description: "Bayesian interval mapping (qtlbim / experimental). GUI scaffold + options; internal debugging by user."
+runner:
+  language: r
+  entry: runner.R
+inputs:
+  - name: cross_rds
+    type: file
+    required: true
+  - name: trait
+    type: string
+    required: true
+outputs:
+  - name: peaks_tsv
+    path: peaks.tsv
+  - name: summary_tsv
+    path: mcmc_summary.tsv
+  - name: artifacts
+    path: artifacts.json

@@ -1,0 +1,7 @@
+id: poly_mappoly_filter
+name: "Polyploid: MAPpoly filter/QC"
+version: 0.1.0
+description: "Filter markers/individuals in mappoly.data: missingness, segregation distortion, redundancy."
+runner:
+  language: r
+  entry: runner.R

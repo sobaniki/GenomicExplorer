@@ -1,0 +1,7 @@
+id: gp_randomforestsrc
+name: "Genomic prediction (randomForestSRC) - multi-trait"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

@@ -1,0 +1,9 @@
+id: gp_bglr_brr
+name: "Genomic prediction (BGLR) - single-trait (ETA selectable)"
+version: 0.3.0
+
+# 0.3.0: multi-kernel ETA + covariates + optional RKHS matrix input
+
+runner:
+  language: r
+  entry: runner.R

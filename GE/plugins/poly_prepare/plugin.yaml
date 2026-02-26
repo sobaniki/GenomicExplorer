@@ -1,0 +1,7 @@
+id: poly_prepare
+name: "Polyploid: Prepare/QC"
+version: 0.1.0
+description: Polyploid module (scaffold)
+runner:
+  language: r
+  entry: runner.R

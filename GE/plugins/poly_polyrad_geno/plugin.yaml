@@ -1,0 +1,7 @@
+id: poly_polyrad_geno
+name: "Polyploid: PolyRAD genotype"
+version: 0.1.0
+description: Polyploid module (scaffold)
+runner:
+  language: r
+  entry: runner.R

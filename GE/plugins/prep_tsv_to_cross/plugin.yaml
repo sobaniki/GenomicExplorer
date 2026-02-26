@@ -1,0 +1,7 @@
+id: prep_tsv_to_cross
+name: "Preprocess: TSV -> R/qtl cross (RDS)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

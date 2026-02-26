@@ -1,0 +1,7 @@
+id: prep_vcf_to_cross
+name: "Preprocess: VCF -> R/qtl cross (RDS)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

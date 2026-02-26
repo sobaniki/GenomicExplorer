@@ -1,0 +1,7 @@
+id: integrate_loci
+name: "Integrate loci from GWAS/QTL peaks"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py

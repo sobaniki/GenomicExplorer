@@ -1,0 +1,7 @@
+id: map_lepmap3
+name: "Linkage map (Lep-MAP3) - external binary scaffold"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py

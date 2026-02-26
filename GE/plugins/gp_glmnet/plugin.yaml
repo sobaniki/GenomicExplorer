@@ -1,0 +1,7 @@
+id: gp_glmnet
+name: "Genomic prediction (glmnet) - Ridge/Lasso"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

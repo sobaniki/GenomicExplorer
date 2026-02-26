@@ -1,0 +1,7 @@
+id: impute_phenotypes
+name: "Phenotype imputation (Mean/Median/missForest/MICE/PHENIX)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

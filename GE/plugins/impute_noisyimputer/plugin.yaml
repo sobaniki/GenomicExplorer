@@ -1,0 +1,7 @@
+id: impute_noisyimputer
+name: "Cross-population imputation: NOISYmputer (external, experimental)"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py

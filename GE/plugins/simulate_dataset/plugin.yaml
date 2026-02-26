@@ -1,0 +1,10 @@
+id: simulate_dataset
+name: "Simulate dataset (GWAS/QTL/GP/RNA-seq/Polyploid)"
+version: 0.4.1
+
+runner:
+  language: r
+  entry: runner.R
+
+outputs:
+  - dataset/manifest.json

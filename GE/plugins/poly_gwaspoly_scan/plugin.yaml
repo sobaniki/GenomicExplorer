@@ -1,0 +1,7 @@
+id: poly_gwaspoly_scan
+name: "Polyploid: GWASpoly GWAS"
+version: 0.1.0
+description: Dosage-based GWAS using GWASpoly (polyploid)
+runner:
+  language: r
+  entry: runner.R

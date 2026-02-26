@@ -1,0 +1,7 @@
+id: prep_plink_to_tsv
+name: "Preprocess: PLINK -> TSV genotype (and bed.matrix)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

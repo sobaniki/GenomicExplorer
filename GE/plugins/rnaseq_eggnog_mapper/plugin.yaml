@@ -1,0 +1,13 @@
+id: rnaseq_eggnog_mapper
+name: EggNOG-mapper (GO annotation)
+version: 0.1.0
+
+description: >
+  Run eggnog-mapper (emapper.py) on a protein FASTA to assign functional annotations
+  and extract gene-to-GO mappings (gene2go.tsv) for downstream OrgDb creation (Phase A).
+
+  This plugin does not build OrgDb by itself; it only prepares gene2go.tsv.
+
+runner:
+  language: python
+  entry: runner.py

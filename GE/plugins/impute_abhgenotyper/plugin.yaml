@@ -1,0 +1,7 @@
+id: impute_abhgenotyper
+name: "Cross-population imputation: ABHgenotypeR (experimental)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

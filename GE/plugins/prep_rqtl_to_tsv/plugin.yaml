@@ -1,0 +1,7 @@
+name: RQTL (cross.rds) -> TSV
+version: 0.1.0
+description: Convert an R/qtl cross object (RDS) to genotype.tsv, marker_map.tsv, phenotype.tsv.
+env: conda:QtGwaStation
+runner:
+  language: r
+  entry: runner.R

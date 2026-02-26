@@ -1,0 +1,7 @@
+id: impute_genotypes
+name: "Genotype imputation (Mean / rrBLUP-EM / missRanger-RF / Beagle)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

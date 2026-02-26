@@ -1,0 +1,7 @@
+id: poly_mappoly_export_map
+name: "Polyploid: MAPpoly export"
+version: 0.1.0
+description: Export MAPpoly maps to CSV and (optional) QTLpoly-compatible object.
+runner:
+  language: r
+  entry: runner.R

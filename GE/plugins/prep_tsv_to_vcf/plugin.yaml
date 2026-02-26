@@ -1,0 +1,7 @@
+id: prep_tsv_to_vcf
+name: "Preprocess: TSV -> VCF"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

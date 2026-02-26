@@ -1,0 +1,7 @@
+id: impute_gbscleanr
+name: "Cross-population imputation: GBScleanR (VCF; HMM error correction)"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R

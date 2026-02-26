@@ -1,0 +1,7 @@
+id: poly_mappoly_order
+name: "Polyploid: MAPpoly ordering"
+version: 0.1.0
+description: Order markers within linkage groups using MDS and/or genomic order.
+runner:
+  language: r
+  entry: runner.R

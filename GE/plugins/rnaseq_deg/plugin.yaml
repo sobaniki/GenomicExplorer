@@ -1,0 +1,12 @@
+id: rnaseq_deg
+name: RNA-seq DEG (edgeR/DESeq2/limma/NOISeq/samr/EBSeq/baySeq) + GOstats
+version: 0.2.0
+
+description: >
+  Differential expression (edgeR/DESeq2/limma and experimental stubs for NOISeq/samr/EBSeq/baySeq)
+  and optional GO enrichment (GOstats)
+  for model organisms (OrgDb packages).
+
+runner:
+  language: r
+  entry: runner.R

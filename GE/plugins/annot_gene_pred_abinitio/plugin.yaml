@@ -1,0 +1,7 @@
+id: annot_gene_pred_abinitio
+name: "Gene prediction near peaks (BRAKER3/AUGUSTUS/SNAP)"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py

@@ -1,0 +1,7 @@
+id: poly_mappoly_import
+name: "Polyploid: MAPpoly import"
+version: 0.1.0
+description: Import geno.rds into MAPpoly (mappoly.data) using read_geno_prob.
+runner:
+  language: r
+  entry: runner.R

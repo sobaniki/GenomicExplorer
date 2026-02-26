@@ -1,0 +1,520 @@
+{
+  "plugins": [
+    {
+      "id": "annot_gene_pred_abinitio",
+      "path": "./plugins/annot_gene_pred_abinitio",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "annotate_peaks_gff",
+      "path": "./plugins/annotate_peaks_gff",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "blast_search",
+      "path": "./plugins/blast_search",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "blastp_search",
+      "path": "./plugins/blastp_search",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "gp_bglr_brr",
+      "path": "./plugins/gp_bglr_brr",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "gp_bglr_multitrait",
+      "path": "./plugins/gp_bglr_multitrait",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "gp_megalmm",
+      "path": "./plugins/gp_megalmm",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "gp_ranger",
+      "path": "./plugins/gp_ranger",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "gp_randomforestsrc",
+      "path": "./plugins/gp_randomforestsrc",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "gp_glmnet",
+      "path": "./plugins/gp_glmnet",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "gwas_farmcpupp",
+      "path": "./plugins/gwas_farmcpupp",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "gwas_gaston",
+      "path": "./plugins/gwas_gaston",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "gwas_mlmm",
+      "path": "./plugins/gwas_mlmm",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "impute_abhgenotyper",
+      "path": "./plugins/impute_abhgenotyper",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "impute_fsfhap_tassel",
+      "path": "./plugins/impute_fsfhap_tassel",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "impute_gbscleanr",
+      "path": "./plugins/impute_gbscleanr",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "impute_genotypes",
+      "path": "./plugins/impute_genotypes",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "impute_linkimputer",
+      "path": "./plugins/impute_linkimputer",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "impute_noisyimputer",
+      "path": "./plugins/impute_noisyimputer",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "impute_phenotypes",
+      "path": "./plugins/impute_phenotypes",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "integrate_loci",
+      "path": "./plugins/integrate_loci",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "integrate_evidence",
+      "path": "./plugins/integrate_evidence",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "map_asmap",
+      "path": "./plugins/map_asmap",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "map_lepmap3",
+      "path": "./plugins/map_lepmap3",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "map_onemap",
+      "path": "./plugins/map_onemap",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "map_rqtl",
+      "path": "./plugins/map_rqtl",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_gwaspoly_scan",
+      "path": "./plugins/poly_gwaspoly_scan",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_mappoly_export_map",
+      "path": "./plugins/poly_mappoly_export_map",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_mappoly_filter",
+      "path": "./plugins/poly_mappoly_filter",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_mappoly_group",
+      "path": "./plugins/poly_mappoly_group",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_mappoly_import",
+      "path": "./plugins/poly_mappoly_import",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_mappoly_map_hmm",
+      "path": "./plugins/poly_mappoly_map_hmm",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_mappoly_order",
+      "path": "./plugins/poly_mappoly_order",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_mappoly_twopt",
+      "path": "./plugins/poly_mappoly_twopt",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_polymapr_map",
+      "path": "./plugins/poly_polymapr_map",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_prepare",
+      "path": "./plugins/poly_prepare",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_prepare_counts",
+      "path": "./plugins/poly_prepare_counts",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_qc_counts",
+      "path": "./plugins/poly_qc_counts",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_qtlpoly_scan",
+      "path": "./plugins/poly_qtlpoly_scan",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "poly_updog_call",
+      "path": "./plugins/poly_updog_call",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_tsv_to_cross",
+      "path": "./plugins/prep_tsv_to_cross",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_tsv_to_plink",
+      "path": "./plugins/prep_tsv_to_plink",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_vcf_to_cross",
+      "path": "./plugins/prep_vcf_to_cross",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_vcf_to_plink",
+      "path": "./plugins/prep_vcf_to_plink",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_plink_to_tsv",
+      "path": "./plugins/prep_plink_to_tsv",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_vcf_to_tsv",
+      "path": "./plugins/prep_vcf_to_tsv",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_tsv_to_vcf",
+      "path": "./plugins/prep_tsv_to_vcf",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "qtl2_scan1",
+      "path": "./plugins/qtl2_scan1",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "qtl_bim",
+      "path": "./plugins/qtl_bim",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "qtl_plotly",
+      "path": "./plugins/qtl_plotly",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "qtl_rqtl_scanone",
+      "path": "./plugins/qtl_rqtl_scanone",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "qtl_sim",
+      "path": "./plugins/qtl_sim",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "rnaseq_build_orgdb",
+      "path": "./plugins/rnaseq_build_orgdb",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "rnaseq_cluster",
+      "path": "./plugins/rnaseq_cluster",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "rnaseq_deg",
+      "path": "./plugins/rnaseq_deg",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "rnaseq_eggnog_mapper",
+      "path": "./plugins/rnaseq_eggnog_mapper",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "rnaseq_enrich",
+      "path": "./plugins/rnaseq_enrich",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "rnaseq_genecluster_modelbased",
+      "path": "./plugins/rnaseq_genecluster_modelbased",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "rnaseq_gostats",
+      "path": "./plugins/rnaseq_gostats",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "simulate_dataset",
+      "path": "./plugins/simulate_dataset",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "simulate_rnaseq",
+      "path": "./plugins/simulate_rnaseq"
+    },
+    {
+      "id": "prep_tsv_to_cross2",
+      "path": "./plugins/prep_tsv_to_cross2",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_rqtl_to_tsv",
+      "path": "./plugins/prep_rqtl_to_tsv",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_cross2_to_tsv",
+      "path": "./plugins/prep_cross2_to_tsv",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "integrate_prioritize",
+      "path": "./plugins/integrate_prioritize",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    }
+  ]
+}

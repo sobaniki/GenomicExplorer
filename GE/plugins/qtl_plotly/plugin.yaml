@@ -1,0 +1,11 @@
+id: qtl_plotly
+name: "QTL Plot (Plotly, publication-style)"
+version: 0.1.0
+
+description: |
+  Generate publication-quality QTL scan plots (genome-wide + peak zoom) as Plotly HTML,
+  from outputs of r/qtl scanone/CIM/MQM/stepwise or qtl2 scan1.
+
+runner:
+  language: python
+  entry: runner.py

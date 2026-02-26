@@ -1,0 +1,16 @@
+id: rnaseq_build_orgdb
+name: GO DB builder (OrgDb from gene2go/GAF/EggNOG)
+version: 0.1.1
+
+description: >
+  Build an OrgDb-style annotation package (org.*.eg.db) usable by GOstats/clusterProfiler
+  from user-provided gene-to-GO mappings.
+
+  Phase A supports two modes:
+    - gene2go_tsv: TSV with >=2 columns (gene_id, go_id [,evidence] [,ontology])
+    - gaf: GOA Gene Association File (GAF 2.x)
+    - eggnog_annotations: eggNOG-mapper output (*.annotations / *.emapper.annotations)
+
+runner:
+  language: r
+  entry: runner.R

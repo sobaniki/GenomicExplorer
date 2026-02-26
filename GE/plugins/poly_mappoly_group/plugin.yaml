@@ -1,0 +1,7 @@
+id: poly_mappoly_group
+name: "Polyploid: MAPpoly grouping"
+version: 0.1.0
+description: Assign markers to linkage groups using group_mappoly.
+runner:
+  language: r
+  entry: runner.R

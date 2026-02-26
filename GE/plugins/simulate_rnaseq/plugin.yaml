@@ -1,0 +1,14 @@
+id: simulate_rnaseq
+name: "Simulate RNA-seq counts (TCC/NB)"
+version: 0.2.2
+
+runner:
+  language: r
+  entry: runner.R
+
+inputs:
+  - id: params
+    type: json
+outputs:
+  - id: out_dir
+    type: directory

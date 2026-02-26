@@ -1,0 +1,7 @@
+id: map_rqtl
+name: "Linkage map (r/qtl) - est.map experimental"
+version: 0.1.0
+
+runner:
+  language: r
+  entry: runner.R
