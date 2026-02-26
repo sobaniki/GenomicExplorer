@@ -1,5 +1,5 @@
 _r_libs/
-*/__pycache__/
+GE/*/__pycache__/
 *.rds
 *.dat
 *.txt
