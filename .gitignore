@@ -1,2 +1,6 @@
 _r_libs/
 */__pycache__/
+*.rds
+*.dat
+*.txt
+*.pdf
