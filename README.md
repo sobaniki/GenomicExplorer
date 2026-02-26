@@ -55,21 +55,41 @@ Please click "install_genomicexplorer.cmd", "install_optional_R.cmd", and "run_g
 
 GenomicExplorer includes various functions for statistical genomics. These functions are separated as tabs (Preprocess/GP/GWAS/RNA-seq/Map/QTL/Polyploid/Integrate/Sim) in GenomicExplorer.
 
+The popular and reliable packages/tools can be used with GenomicExplorer. Please read those manuals or documents to understand the detailed usage of each packages/tool.
+
 ### Preprocess
 The Preprocess tab implements File converter, Genotype Imputation and Phenotype Imputation.
 
-### GP
+### GP (Genomic Prediction)
 
-### GWAS
+Both single trait and multi-trait models are implemented.
+
+### GWAS (Genome-Wide Association Study)
+
+Linear Mixed Model (LMM) and other methods are implemented.
 
 ### RNA-seq
 
+DEG (Differentially Expressed Genes), sample clustering/dimension reduction, gene clustering model and GO (Gene Ontology) enrichment analyses are implemented.
+
+For non-model organisms, GO DB (DataBase) builder is also implemented.
+
 ### Map
+
+Three R packages for linkage map construction can be used in GenomicExplorer.
 
 ### QTL
 
+QTL (Quantitative Trait Loci) analysis can be performed with GenomicExplorer.
+
 ### Polyploid
+
+For polyploids, GenomicExplorer prepares an independent tab.
 
 ### Integrate
 
+Various results derived from GWAS/QTL/RNA-seq/others can be integrated.
+
 ### Sim
+
+The Sim tab can generate genotype and RNA-seq count data. This is mainly used for debug.
