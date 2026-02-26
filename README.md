@@ -101,7 +101,7 @@ Linear Mixed Model (LMM) and other methods are implemented. The R package gaston
 
 [gaston](https://cran.r-project.org/web/packages/gaston/index.html)
 
-### RNA-seq
+### RNA-seq (Transcriptome analysis)
 
 <img width="458" height="422" alt="Screenshot from 2026-02-26 16-05-41" src="https://github.com/user-attachments/assets/ba66c7a4-cdd6-4203-a0db-2d93d2a70302" />
 
@@ -109,7 +109,7 @@ DEG (Differentially Expressed Genes), sample clustering/dimension reduction, gen
 
 For non-model organisms, GO DB (DataBase) builder is also implemented.
 
-### Map
+### Map (Linkage Map Construction)
 
 Three R packages for linkage map construction can be used in GenomicExplorer.
 
@@ -117,13 +117,13 @@ GenomicExplorer depends on three R packages (ASMap/qtl/onemap) for linkage map c
 
 (In future, Lep-MAP3 may be used with GenomicExplorer)
 
-### QTL
+### QTL (Quantitative Trait Loci analysis)
 
 QTL (Quantitative Trait Loci) analysis can be performed with GenomicExplorer.
 
 GenomicExplorer depends on three R packages (qtl/qtl2/qtlbim) for QTL analysis.
 
-### Polyploid
+### Polyploid (Dosage calling, GWAS, Map and QTL)
 
 For polyploids, GenomicExplorer prepares an independent tab.
 
@@ -131,6 +131,6 @@ For polyploids, GenomicExplorer prepares an independent tab.
 
 Various results derived from GWAS/QTL/RNA-seq/others can be integrated.
 
-### Sim
+### Sim (Simulation of genotype/phenotype and RNA-seq count data)
 
 The Sim tab can generate genotype/phenotype and RNA-seq count data. This is mainly used for debug.
