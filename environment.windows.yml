@@ -35,6 +35,7 @@ dependencies:
   # R (core)
   # -------------------------
   - r-base=4.4.*       # :contentReference[oaicite:10]{index=10}
+  - r-devtools
   - r-jsonlite
   - r-optparse
   - r-data.table

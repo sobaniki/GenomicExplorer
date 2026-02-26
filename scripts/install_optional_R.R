@@ -70,6 +70,7 @@ dev_github <- c("hadley/pryr",
 install.packages("https://github.com/Gregor-Mendel-Institute/mlmm/files/1356516/emma_1.1.2.tar.gz", repos = NULL)
 install.packages("https://cran.r-project.org/src/contrib/Archive/MBCluster.Seq/MBCluster.Seq_1.0.tar.gz", repos = NULL)
 install.packages("https://cran.r-project.org/src/contrib/Archive/qtlpoly/qtlpoly_0.2.4.tar.gz", repos = NULL)
+install.packages("https://cran.r-project.org/src/contrib/Archive/impute/impute_1.26.0.tar.gz", repos = NULL)
 
 # ---- profile selection ----
 if (profile == "core") {
