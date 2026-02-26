@@ -10,6 +10,8 @@ I recommend the use of Micromamba to prepare GenomicExplorer.
 GenomicExplorer needs Micromamba.
 The detailed procedure to install Micromamba is described in the webpage.
 
+[Micromamba webpage](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html)
+
 Here, I show the procudure using terminal in Linux OS (Ubuntu):
 
 ```install_micromamba
@@ -49,7 +51,7 @@ bash ./scripts/run_linux.sh
 
 ## For Windows OS users
 
-The most functions of GenomicExplorer should work in Windows OS.
+The most functions of GenomicExplorer should work in Windows OS. Although GenomicExplorer can work with PowerShell, I prepared the shortcut to install and start GenomicExplorer.
 
 Please click "install_genomicexplorer.cmd", "install_optional_R.cmd", and "run_genomicexplorer.cmd" to install and start GenomicExplorer.
 
@@ -77,16 +79,27 @@ The popular and reliable packages/tools can be used with GenomicExplorer. Please
 
 ### Preprocess
 The Preprocess tab implements File converter, Genotype Imputation and Phenotype Imputation.
+File converter accepts VCF/PLINK BED/TSV/CSV or RDS of r/qtl and qtl2 YAML and convertd into the other formats.
+
+In Genotype Imputation, users can select a method from mean/EM/RF (RandomForest). Users can prepare the Beagle v5.4 software (Browning et al., 2018) and use it for Genotype Imputation.
+
+[Beagle v5.4](https://faculty.washington.edu/browning/beagle/b5_4.html)
 
 ### GP (Genomic Prediction)
 
 Both single trait and multi-trait models are implemented.
 
-GenomicExplorer mainly depends on BGLR, a popular R package for GP. In addition, RandomForest, an non-linear model, can also be used with GenomicExplorer.
+GenomicExplorer mainly depends on BGLR, a popular R package for GP (Perez and de los Campos, 2014). 
+
+[BGLR github](https://github.com/gdlc/BGLR-R)
+
+In addition, RandomForest, an non-linear model, can also be used with GenomicExplorer.
 
 ### GWAS (Genome-Wide Association Study)
 
-Linear Mixed Model (LMM) and other methods are implemented.
+Linear Mixed Model (LMM) and other methods are implemented. The R package gaston is used for LMM.
+
+[gaston](https://cran.r-project.org/web/packages/gaston/index.html)
 
 ### RNA-seq
 
@@ -120,4 +133,4 @@ Various results derived from GWAS/QTL/RNA-seq/others can be integrated.
 
 ### Sim
 
-The Sim tab can generate genotype and RNA-seq count data. This is mainly used for debug.
+The Sim tab can generate genotype/phenotype and RNA-seq count data. This is mainly used for debug.
