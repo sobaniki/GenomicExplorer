@@ -30,7 +30,7 @@ for %%I in ("%MM%") do set "MMDIR=%%~dpI"
 set "PATH=%MMDIR%;%PATH%"
 
 REM --- env name (change here if you want) ---
-set "ENV_NAME=genomicexplorer2"
+set "ENV_NAME=GenomicExplorer"
 
 REM --- choose yml (windows-first) ---
 set "YML=environment.windows.yml"

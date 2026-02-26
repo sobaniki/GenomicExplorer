@@ -12474,7 +12474,7 @@ class GWASTab(QWidget):
         form.addRow('marker_map', _hbox(self.marker_map_tsv, b_mp))
         form.addRow('phenotype', _hbox(self.pheno_path, b_ph))
         form.addRow('covariates (opt)', _hbox(self.cov_path, b_cv))
-        #form.addRow('trait', self.trait)
+        form.addRow('trait', self.trait)
         #form.addRow('genotype input', self.geno_mode)
         #form.addRow('PLINK prefix', _hbox(self.plink_prefix, b_pl))
         #form.addRow('VCF path', _hbox(self.vcf_path, b_vcf))
