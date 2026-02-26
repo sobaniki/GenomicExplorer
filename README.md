@@ -75,7 +75,7 @@ For RNA-seq, count data compose of m (genes as row) x n (samples as column) as T
 
 GenomicExplorer includes various functions for statistical genomics. These functions are separated as tabs (Preprocess/GP/GWAS/RNA-seq/Map/QTL/Polyploid/Integrate/Sim) in GenomicExplorer.
 
-The popular and reliable packages/tools can be used with GenomicExplorer. Please read those manuals or documents to understand the detailed usage of each packages/tool.
+The popular and reliable packages/tools can be used with GenomicExplorer. I will prepare the detailed manual of GenomicExplorer for these packages in future. Please read those manuals or documents to understand the detailed usage of each packages/tool.
 
 ### Preprocess
 The Preprocess tab implements File converter, Genotype Imputation and Phenotype Imputation.
