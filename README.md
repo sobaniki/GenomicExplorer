@@ -75,7 +75,7 @@ For RNA-seq, count data compose of m (genes as row) x n (samples as column) as T
 
 GenomicExplorer includes various functions for statistical genomics. These functions are separated as tabs (Preprocess/GP/GWAS/RNA-seq/Map/QTL/Polyploid/Integrate/Sim) in GenomicExplorer.
 
-The popular and reliable packages/tools can be used with GenomicExplorer. Please read those manuals or documents to understand the detailed usage of each packages/tool.
+The popular and reliable packages/tools can be used with GenomicExplorer. I will prepare the detailed manual of GenomicExplorer for these packages in future. Please read those manuals or documents to understand the detailed usage of each packages/tool.
 
 ### Preprocess
 The Preprocess tab implements File converter, Genotype Imputation and Phenotype Imputation.
@@ -83,33 +83,56 @@ File converter accepts VCF/PLINK BED/TSV/CSV or RDS of r/qtl and qtl2 YAML and c
 
 In Genotype Imputation, users can select a method from mean/EM/RF (RandomForest). Users can prepare the Beagle v5.4 software (Browning et al., 2018) and use it for Genotype Imputation.
 
+[rrBLUP](https://cran.r-project.org/web/packages/rrBLUP/index.html)
+[missRanger](https://cran.r-project.org/web/packages/missRanger/index.html)  
 [Beagle v5.4](https://faculty.washington.edu/browning/beagle/b5_4.html)
 
+[PHENIX](https://github.com/jlboat/PHENIX?tab=readme-ov-file)
+
 ### GP (Genomic Prediction)
+
+<img width="300" height="300" alt="gp_scatter_2x2_plotly" src="https://github.com/user-attachments/assets/a908ef65-76dd-4fbd-9db6-65f3a01c3e2c" />
 
 Both single trait and multi-trait models are implemented.
 
 GenomicExplorer mainly depends on BGLR, a popular R package for GP (Perez and de los Campos, 2014). 
+Basic priors of BGLR, such as BRR/BayesA/BayesB/BayesC/RKHS, can be used with single kernel or multiple kernels in GenomicExplorer.
 
-[BGLR github](https://github.com/gdlc/BGLR-R)
+MegaLMM (Runcie et al., 2021) can also be used for multi-trait model.
 
-In addition, RandomForest, an non-linear model, can also be used with GenomicExplorer.
+In addition, RandomForest, an non-linear model, can also be used with GenomicExplorer. 
+For single trait, a fast package, ranger, is adopted in GenomicExplorer. For multi-trait model, randomForestSRC is used in GenomicExplorer.
+
+[BGLR github](https://github.com/gdlc/BGLR-R)    
+[MegaLMM github](https://github.com/deruncie/MegaLMM/tree/master)    
+[ranger](https://cran.r-project.org/web/packages/ranger/index.html)    
+[ranfomForestSRC](https://cran.r-project.org/web/packages/randomForestSRC/index.html)
+
+[RAINBOWR](https://github.com/KosukeHamazaki/RAINBOWR)
 
 ### GWAS (Genome-Wide Association Study)
+<img width="350" height="200" alt="manhattan" src="https://github.com/user-attachments/assets/a7bc9abc-a625-4756-8644-2300ae0241fd" />
 
 Linear Mixed Model (LMM) and other methods are implemented. The R package gaston is used for LMM.
 
-[gaston](https://cran.r-project.org/web/packages/gaston/index.html)
+[gaston](https://cran.r-project.org/web/packages/gaston/index.html)  
+[MLMM](https://github.com/Gregor-Mendel-Institute/MultLocMixMod)  
+[FarmCPU](https://github.com/amkusmec/FarmCPUpp)
 
-### RNA-seq
+### RNA-seq (Transcriptome analysis)
 
-<img width="458" height="422" alt="Screenshot from 2026-02-26 16-05-41" src="https://github.com/user-attachments/assets/ba66c7a4-cdd6-4203-a0db-2d93d2a70302" />
+<img width="229" height="211" alt="Screenshot from 2026-02-26 16-05-41" src="https://github.com/user-attachments/assets/ba66c7a4-cdd6-4203-a0db-2d93d2a70302" />
 
 DEG (Differentially Expressed Genes), sample clustering/dimension reduction, gene clustering model and GO (Gene Ontology) enrichment analyses are implemented.
 
 For non-model organisms, GO DB (DataBase) builder is also implemented.
 
-### Map
+[Bioconductor](https://www.bioconductor.org/)  
+[GOstats](https://www.bioconductor.org/packages/release/bioc/html/GOstats.html)  
+
+### Map (Linkage Map Construction)
+
+<img width="350" height="225" alt="map_plotly" src="https://github.com/user-attachments/assets/acc5f135-ac75-4927-a1a1-8d783cb5e183" />
 
 Three R packages for linkage map construction can be used in GenomicExplorer.
 
@@ -117,20 +140,30 @@ GenomicExplorer depends on three R packages (ASMap/qtl/onemap) for linkage map c
 
 (In future, Lep-MAP3 may be used with GenomicExplorer)
 
-### QTL
+[onemap](https://cran.r-project.org/web/packages/onemap/index.html)
+
+### QTL (Quantitative Trait Loci analysis)
 
 QTL (Quantitative Trait Loci) analysis can be performed with GenomicExplorer.
 
 GenomicExplorer depends on three R packages (qtl/qtl2/qtlbim) for QTL analysis.
 
-### Polyploid
+[qtl2 github](https://github.com/rqtl/qtl2)  
+[qtlbim github](https://github.com/fboehm/qtlbim)
+
+### Polyploid (Dosage calling, GWAS, Map and QTL)
 
 For polyploids, GenomicExplorer prepares an independent tab.
+
+[updog](https://github.com/dcgerard/updog)  
+[GWASpoly](https://github.com/jendelman/GWASpoly)  
+[MAPpoly](https://github.com/mmollina/MAPpoly)  
+[QTLpoly](https://github.com/guilherme-pereira/QTLpoly)
 
 ### Integrate
 
 Various results derived from GWAS/QTL/RNA-seq/others can be integrated.
 
-### Sim
+### Sim (Simulation of genotype/phenotype and RNA-seq count data)
 
 The Sim tab can generate genotype/phenotype and RNA-seq count data. This is mainly used for debug.
