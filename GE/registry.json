@@ -515,6 +515,14 @@
         "mode": "micromamba",
         "name": "GenomicExplorer"
       }
+    },
+    {
+      "id": "qc_filter_plink2",
+      "path": "./plugins/qc_filter_plink2",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
     }
   ]
 }

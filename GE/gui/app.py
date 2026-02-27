@@ -15842,11 +15842,14 @@ class PreprocessTab(QWidget):
     PLUGIN_TSV_TO_VCF = "prep_tsv_to_vcf"
     PLUGIN_TSV_TO_CROSS = "prep_tsv_to_cross"
     PLUGIN_TSV_TO_CROSS2 = "prep_tsv_to_cross2"
+
+    PLUGIN_QC_FILTER_PLINK2 = "qc_filter_plink2"
     
     PLUGIN_IMPUTE = "impute_genotypes"
     PLUGIN_IMPUTE_PHENO = "impute_phenotypes"
 
     MODES = ["TSV", "VCF", "PLINK", "RQTL", "RQTL2"]
+    FILTER_MODES = ["TSV", "VCF", "PLINK", "RQTL"]
 
     def __init__(self, app_log: QTextEdit, results: ResultsPane, gwas_tab: GWASTab, gp_tab: 'GenomicPredictionTab', map_tab: 'LinkageMapTab'):
         super().__init__()
@@ -15913,6 +15916,90 @@ class PreprocessTab(QWidget):
 
         box = QGroupBox("File converter")
         box.setLayout(form)
+
+        # --- Filtering (QC) ---
+        self.flt_mode = QComboBox()
+        self.flt_mode.addItems(self.FILTER_MODES)
+
+        self.flt_genotype_file = QLineEdit(); self.flt_genotype_file.setPlaceholderText("Select genotype input")
+        self.flt_marker_map_file = QLineEdit(); self.flt_marker_map_file.setPlaceholderText("(TSV input only) marker_map.tsv")
+        self.flt_phenotype_file = QLineEdit(); self.flt_phenotype_file.setPlaceholderText("optional: phenotype.tsv")
+        self.flt_output_folder = QLineEdit(); self.flt_output_folder.setPlaceholderText("Select output folder")
+        self.flt_prefix = QLineEdit(); self.flt_prefix.setPlaceholderText("optional: if empty, auto-generated")
+
+        # thresholds
+        self.flt_max_missing_geno = QDoubleSpinBox(); self.flt_max_missing_geno.setRange(0.0, 0.99); self.flt_max_missing_geno.setDecimals(3); self.flt_max_missing_geno.setSingleStep(0.01); self.flt_max_missing_geno.setValue(0.20)
+        self.flt_max_missing_pheno = QDoubleSpinBox(); self.flt_max_missing_pheno.setRange(0.0, 0.99); self.flt_max_missing_pheno.setDecimals(3); self.flt_max_missing_pheno.setSingleStep(0.01); self.flt_max_missing_pheno.setValue(0.50)
+        self.flt_min_maf = QDoubleSpinBox(); self.flt_min_maf.setRange(0.0, 0.50); self.flt_min_maf.setDecimals(3); self.flt_min_maf.setSingleStep(0.01); self.flt_min_maf.setValue(0.05)
+        self.flt_min_callrate = QDoubleSpinBox(); self.flt_min_callrate.setRange(0.01, 1.00); self.flt_min_callrate.setDecimals(3); self.flt_min_callrate.setSingleStep(0.01); self.flt_min_callrate.setValue(0.90)
+
+        # LD pruning
+        self.flt_ld_prune = QCheckBox("LD pruning (remove redundant markers)")
+        self.flt_ld_prune.setChecked(False)
+        self.flt_ld_window = QSpinBox(); self.flt_ld_window.setRange(10, 500000); self.flt_ld_window.setValue(100)
+        self.flt_ld_step = QSpinBox(); self.flt_ld_step.setRange(1, 500000); self.flt_ld_step.setValue(10)
+        self.flt_ld_r2 = QDoubleSpinBox(); self.flt_ld_r2.setRange(0.0, 1.0); self.flt_ld_r2.setDecimals(3); self.flt_ld_r2.setSingleStep(0.05); self.flt_ld_r2.setValue(0.2)
+
+        # Segregation distortion (optional)
+        self.flt_segdist = QCheckBox("Segregation distortion filter (F2/BC/DH/RIL)")
+        self.flt_segdist.setChecked(False)
+        self.flt_cross_type = QComboBox(); self.flt_cross_type.addItems(["f2", "bc", "dh", "riself", "risib"])
+        self.flt_seg_p = QDoubleSpinBox(); self.flt_seg_p.setRange(0.0, 1.0); self.flt_seg_p.setDecimals(6); self.flt_seg_p.setSingleStep(0.001); self.flt_seg_p.setValue(0.001)
+        self.flt_het_max = QDoubleSpinBox(); self.flt_het_max.setRange(0.0, 1.0); self.flt_het_max.setDecimals(3); self.flt_het_max.setSingleStep(0.01); self.flt_het_max.setValue(0.20)
+
+        self.flt_plink2_bin = QLineEdit(); self.flt_plink2_bin.setPlaceholderText("optional: plink2 binary (default: plink2)")
+
+        b_fg = QPushButton("Browse"); b_fg.setStyleSheet(GE_BTN_BROWSE_QSS); b_fg.clicked.connect(self.pick_flt_genotype_file)
+        b_fm = QPushButton("Browse"); b_fm.setStyleSheet(GE_BTN_BROWSE_QSS); b_fm.clicked.connect(self.pick_flt_marker_map_file)
+        b_fp = QPushButton("Browse"); b_fp.setStyleSheet(GE_BTN_BROWSE_QSS); b_fp.clicked.connect(self.pick_flt_phenotype_file)
+        b_fo = QPushButton("Browse"); b_fo.setStyleSheet(GE_BTN_BROWSE_QSS); b_fo.clicked.connect(self.pick_flt_output_folder)
+
+        btn_copy = QPushButton("Copy from File converter")
+        btn_copy.clicked.connect(lambda *args, **kwargs: self.copy_fc_to_filter())
+
+        self.run_flt_btn = QPushButton("Run")
+        self.run_flt_btn.setStyleSheet(GE_BTN_RUN_QSS)
+        self.run_flt_btn.clicked.connect(lambda *args, **kwargs: self.run_filtering())
+
+        flt_form = QFormLayout()
+        flt_form.addRow(btn_copy)
+        flt_form.addRow("output_folder", self._hbox(self.flt_output_folder, b_fo))
+        flt_form.addRow("Input format", self.flt_mode)
+        flt_form.addRow("Genotype input", self._hbox(self.flt_genotype_file, b_fg))
+        flt_form.addRow("Marker map file (TSV)", self._hbox(self.flt_marker_map_file, b_fm))
+        flt_form.addRow("Phenotype file (opt)", self._hbox(self.flt_phenotype_file, b_fp))
+        flt_form.addRow("Prefix (opt)", self.flt_prefix)
+        flt_form.addRow("max_missing_geno (samples)", self.flt_max_missing_geno)
+        flt_form.addRow("max_missing_pheno (samples)", self.flt_max_missing_pheno)
+        flt_form.addRow("min_MAF (markers)", self.flt_min_maf)
+        flt_form.addRow("min_call_rate (markers)", self.flt_min_callrate)
+
+        ld_box = QGroupBox("LD pruning")
+        ld_f = QFormLayout()
+        ld_f.addRow("", self.flt_ld_prune)
+        ld_f.addRow("window (variants)", self.flt_ld_window)
+        ld_f.addRow("step (variants)", self.flt_ld_step)
+        ld_f.addRow("r2 threshold", self.flt_ld_r2)
+        ld_box.setLayout(ld_f)
+
+        sd_box = QGroupBox("Segregation distortion")
+        sd_f = QFormLayout()
+        sd_f.addRow("", self.flt_segdist)
+        sd_f.addRow("cross_type", self.flt_cross_type)
+        sd_f.addRow("keep if p >=", self.flt_seg_p)
+        sd_f.addRow("max_heterozygosity", self.flt_het_max)
+        sd_box.setLayout(sd_f)
+
+        flt_wrap = QGroupBox("Filtering (QC)")
+        flt_l = QVBoxLayout()
+        flt_l.addLayout(flt_form)
+        flt_l.addWidget(ld_box)
+        flt_l.addWidget(sd_box)
+        flt_l.addWidget(QLabel("plink2_bin (optional)"))
+        flt_l.addWidget(self.flt_plink2_bin)
+        flt_l.addWidget(self.run_flt_btn)
+        flt_wrap.setLayout(flt_l)
+        self.filter_box = flt_wrap
 
         # --- Imputation ---
         self.imp_method = QComboBox()
@@ -16371,6 +16458,7 @@ class PreprocessTab(QWidget):
         pp_l.setContentsMargins(0, 0, 0, 0)
         pp_l.setSpacing(8)
         pp_l.addWidget(box)
+        pp_l.addWidget(self.filter_box)
         #pp_l.addWidget(cross_section)
         preprocess_page.setLayout(pp_l)
 
@@ -16552,6 +16640,52 @@ class PreprocessTab(QWidget):
         if d:
             self.fc_output_folder.setText(d)
 
+    # ---------- Filtering (QC) ----------
+    def copy_fc_to_filter(self):
+        try:
+            self.flt_mode.setCurrentText(self.mode.currentText())
+        except Exception:
+            pass
+        try:
+            self.flt_genotype_file.setText(self.fc_genotype_file.text().strip())
+            self.flt_marker_map_file.setText(self.fc_marker_map_file.text().strip())
+            self.flt_phenotype_file.setText(self.fc_phenotype_file.text().strip())
+            self.flt_output_folder.setText(self.fc_output_folder.text().strip())
+            self.flt_prefix.setText(self.fc_prefix.text().strip())
+        except Exception:
+            pass
+
+    def pick_flt_output_folder(self):
+        d = QFileDialog.getExistingDirectory(self, "Select output folder")
+        if d:
+            self.flt_output_folder.setText(d)
+
+    def pick_flt_genotype_file(self):
+        mt = (self.flt_mode.currentText() or "").strip().upper()
+        if mt == "VCF":
+            flt = "VCF (*.vcf *.vcf.gz);;All (*.*)"
+        elif mt == "PLINK":
+            flt = "PLINK (*.bed *.bim *.fam *.pgen *.pvar *.psam);;All (*.*)"
+        elif mt == "TSV":
+            flt = "TSV (*.tsv *.txt *.csv);;All (*.*)"
+        elif mt == "RQTL":
+            flt = "RDS (*.rds);;All (*.*)"
+        else:
+            flt = "All (*.*)"
+        fp, _ = QFileDialog.getOpenFileName(self, f"Select genotype input ({mt})", "", flt)
+        if fp:
+            self.flt_genotype_file.setText(fp)
+
+    def pick_flt_marker_map_file(self):
+        fp, _ = QFileDialog.getOpenFileName(self, "Select marker_map.tsv", "", "TSV (*.tsv *.txt);;All (*.*)")
+        if fp:
+            self.flt_marker_map_file.setText(fp)
+
+    def pick_flt_phenotype_file(self):
+        fp, _ = QFileDialog.getOpenFileName(self, "Select phenotype file", "", "TSV/CSV (*.tsv *.txt *.csv);;All (*.*)")
+        if fp:
+            self.flt_phenotype_file.setText(fp)
+
     def _safe_copy(self, src: Path, dst: Path):
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
@@ -16718,76 +16852,209 @@ class PreprocessTab(QWidget):
             QMessageBox.critical(self, "Error", str(e))
             return
 
-        outputs = []
-        self.last_plink_prefix = None
+    def run_filtering(self):
+        """Independent Filtering (QC): apply sample/marker filters (MAF/call rate/missingness) and optional LD pruning."""
+        in_mode = (self.flt_mode.currentText() or "").strip().upper()
+        geno_txt = self.flt_genotype_file.text().strip()
+        out_txt = self.flt_output_folder.text().strip()
+
+        if in_mode not in set(self.FILTER_MODES):
+            QMessageBox.warning(self, "Error", "Please select a valid Input format")
+            return
+        if not geno_txt:
+            QMessageBox.warning(self, "Error", "Please select a genotype input")
+            return
+        if not out_txt:
+            QMessageBox.warning(self, "Error", "Please select output_folder")
+            return
+
+        geno_path = Path(geno_txt)
+        if not geno_path.exists():
+            QMessageBox.warning(self, "Error", f"Input not found: {geno_path}")
+            return
+
+        out_root = Path(out_txt).expanduser().resolve()
+        out_root.mkdir(parents=True, exist_ok=True)
+
+        prefix = (self.flt_prefix.text().strip() or "").strip()
+        if not prefix:
+            prefix = f"filter_{time.strftime('%Y%m%d_%H%M%S')}"
+        # sanitize
+        prefix = re.sub(r"[^A-Za-z0-9_.-]+", "_", prefix)
+
+        out_dir = out_root / prefix
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        user_mm = Path(self.flt_marker_map_file.text().strip()).expanduser() if self.flt_marker_map_file.text().strip() else None
+        user_ph = Path(self.flt_phenotype_file.text().strip()).expanduser() if self.flt_phenotype_file.text().strip() else None
+        if user_mm and not user_mm.exists():
+            QMessageBox.warning(self, "Error", f"marker_map.tsv not found: {user_mm}")
+            return
+        if user_ph and not user_ph.exists():
+            QMessageBox.warning(self, "Error", f"phenotype file not found: {user_ph}")
+            return
+
+        # Convert inputs to PLINK when needed
+        inter = Path(tempfile.mkdtemp(prefix="filter_qc_"))
+        inter_tsv = inter / "tsv"; inter_tsv.mkdir(parents=True, exist_ok=True)
+        inter_plink = inter / "plink"; inter_plink.mkdir(parents=True, exist_ok=True)
+
+        plink_prefix = None
+        phenotype_tsv = None
+        marker_map_tsv = None
+        geno_tsv = None  # defined for all branches; used only in TSV/RQTL staging
 
         try:
-            for fmt in self.MODES:
-                if fmt == in_mode:
-                    continue
+            if in_mode == "PLINK":
+                # Accept either prefix or any of bed/bim/fam
+                p = geno_path
+                if p.suffix.lower() in (".bed", ".bim", ".fam", ".pgen", ".pvar", ".psam"):
+                    p = p.with_suffix("")
+                plink_prefix = p
+                # phenotype can be provided by user only (for now)
+                if user_ph:
+                    phenotype_tsv = user_ph
 
-                if fmt == "TSV":
-                    od = out_root / 'tsv'
-                    od.mkdir(parents=True, exist_ok=True)
-                    self._safe_copy(geno_tsv, od / 'genotype.tsv')
-                    if marker_map_tsv:
-                        self._safe_copy(marker_map_tsv, od / 'marker_map.tsv')
-                    if phenotype_tsv:
-                        self._safe_copy(phenotype_tsv, od / 'phenotype.tsv')
-                    outputs.append((fmt, str(od)))
+            elif in_mode == "VCF":
+                out_prefix = inter_plink / "data"
+                ok, _, _ = self._run_plugin_step(self.PLUGIN_VCF_TO_PLINK, {"vcf_path": str(geno_path), "out_prefix": str(out_prefix)}, "VCF -> PLINK")
+                if not ok:
+                    raise RuntimeError("VCF -> PLINK failed")
+                plink_prefix = out_prefix
+                if user_ph:
+                    phenotype_tsv = user_ph
 
-                elif fmt == "VCF":
-                    od = out_root / 'vcf'
-                    od.mkdir(parents=True, exist_ok=True)
-                    out_vcf = od / f"{prefix}.vcf"
-                    ok, _, _ = self._run_plugin_step(self.PLUGIN_TSV_TO_VCF, {'genotype_tsv': str(geno_tsv), 'marker_map_tsv': str(marker_map_tsv) if marker_map_tsv else '', 'out_vcf': str(out_vcf)}, 'TSV -> VCF')
-                    if not ok:
-                        raise RuntimeError('TSV -> VCF failed')
-                    outputs.append((fmt, str(out_vcf)))
+            elif in_mode == "TSV":
+                geno_tsv = geno_path
+                marker_map_tsv = user_mm
+                phenotype_tsv = user_ph
+                if marker_map_tsv is None:
+                    cand = geno_path.parent / 'marker_map.tsv'
+                    if cand.exists():
+                        marker_map_tsv = cand
+                if phenotype_tsv is None:
+                    cand = geno_path.parent / 'phenotype.tsv'
+                    if cand.exists():
+                        phenotype_tsv = cand
 
-                elif fmt == "PLINK":
-                    od = out_root / 'plink'
-                    od.mkdir(parents=True, exist_ok=True)
-                    out_prefix = od / prefix
-                    ok, outp, _ = self._run_plugin_step(self.PLUGIN_TSV_TO_PLINK, {'genotype_tsv': str(geno_tsv), 'marker_map_tsv': str(marker_map_tsv) if marker_map_tsv else '', 'out_prefix': str(out_prefix)}, 'TSV -> PLINK')
-                    if not ok:
-                        raise RuntimeError('TSV -> PLINK failed')
-                    bm = outp / 'bedmatrix.rds'
-                    if bm.exists():
-                        self._safe_copy(bm, od / 'bedmatrix.rds')
-                    self.last_plink_prefix = str(out_prefix)
-                    outputs.append((fmt, str(out_prefix)))
+                # copy phenotype into inter dir for provenance
+                if phenotype_tsv and phenotype_tsv.exists():
+                    dst = inter_tsv / 'phenotype.tsv'
+                    self._safe_copy(phenotype_tsv, dst)
+                    phenotype_tsv = dst
 
-                elif fmt == "RQTL":
-                    od = out_root / 'rqtl'
-                    od.mkdir(parents=True, exist_ok=True)
-                    ok, outp, _ = self._run_plugin_step(self.PLUGIN_TSV_TO_CROSS, {'genotype_tsv': str(geno_tsv), 'phenotype_tsv': str(phenotype_tsv) if phenotype_tsv else '', 'marker_map_tsv': str(marker_map_tsv) if marker_map_tsv else '', 'cross_type': cross_type}, 'TSV -> RQTL')
-                    if not ok:
-                        raise RuntimeError('TSV -> RQTL failed')
-                    for fn in ['cross.rds', 'sample_summary.tsv', 'marker_summary.tsv']:
-                        fsrc = outp / fn
-                        if fsrc.exists():
-                            self._safe_copy(fsrc, od / fn)
-                    outputs.append((fmt, str(od / 'cross.rds')))
+                out_prefix = inter_plink / "data"
+                ok, _, _ = self._run_plugin_step(self.PLUGIN_TSV_TO_PLINK, {"genotype_tsv": str(geno_tsv), "marker_map_tsv": str(marker_map_tsv) if marker_map_tsv else "", "out_prefix": str(out_prefix)}, "TSV -> PLINK")
+                if not ok:
+                    raise RuntimeError("TSV -> PLINK failed")
+                plink_prefix = out_prefix
 
-                elif fmt == "RQTL2":
-                    od = out_root / 'rqtl2'
-                    od.mkdir(parents=True, exist_ok=True)
-                    ok, _, _ = self._run_plugin_step(self.PLUGIN_TSV_TO_CROSS2, {'genotype_tsv': str(geno_tsv), 'phenotype_tsv': str(phenotype_tsv) if phenotype_tsv else '', 'marker_map_tsv': str(marker_map_tsv) if marker_map_tsv else '', 'cross_type': cross_type, 'out_dir_override': str(od)}, 'TSV -> RQTL2')
-                    if not ok:
-                        raise RuntimeError('TSV -> RQTL2 failed')
-                    outputs.append((fmt, str(od / 'cross2.yaml')))
+            elif in_mode == "RQTL":
+                ok, _, _ = self._run_plugin_step(self.PLUGIN_RQTL_TO_TSV, {"cross_rds": str(geno_path), "out_dir_override": str(inter_tsv)}, "RQTL -> TSV")
+                if not ok:
+                    raise RuntimeError("RQTL -> TSV failed")
+                geno_tsv = inter_tsv / 'genotype.tsv'
+                marker_map_tsv = inter_tsv / 'marker_map.tsv'
+                phenotype_tsv = inter_tsv / 'phenotype.tsv'
+                if user_ph:
+                    dst = inter_tsv / 'phenotype.tsv'
+                    self._safe_copy(user_ph, dst)
+                    phenotype_tsv = dst
 
-            import pandas as pd
-            df = pd.DataFrame(outputs, columns=['format', 'path'])
-            summary_path = out_root / 'file_converter_summary.tsv'
-            df.to_csv(summary_path, sep='	', index=False)
-            self.results.set_table_df(df, source_path=summary_path)
-            self._log_msg('[OK] File conversion completed')
+                out_prefix = inter_plink / "data"
+                ok, _, _ = self._run_plugin_step(self.PLUGIN_TSV_TO_PLINK, {"genotype_tsv": str(geno_tsv), "marker_map_tsv": str(marker_map_tsv) if marker_map_tsv else "", "out_prefix": str(out_prefix)}, "TSV -> PLINK")
+                if not ok:
+                    raise RuntimeError("TSV -> PLINK failed")
+                plink_prefix = out_prefix
 
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
             return
+
+        if plink_prefix is None:
+            QMessageBox.critical(self, "Error", "Failed to prepare PLINK input")
+            return
+
+        # Run QC filter plugin (PLINK2)
+        p_plink2 = self.flt_plink2_bin.text().strip()
+        params = {
+            "plink_prefix": str(plink_prefix),
+            "phenotype_tsv": str(phenotype_tsv) if phenotype_tsv else "",
+            "out_dir_override": str(out_dir),
+            "plink2_bin": p_plink2,
+            "max_missing_geno": float(self.flt_max_missing_geno.value()),
+            "max_missing_pheno": float(self.flt_max_missing_pheno.value()),
+            "min_maf": float(self.flt_min_maf.value()),
+            "min_call_rate": float(self.flt_min_callrate.value()),
+            "ld_prune": bool(self.flt_ld_prune.isChecked()),
+            "ld_window": int(self.flt_ld_window.value()),
+            "ld_step": int(self.flt_ld_step.value()),
+            "ld_r2": float(self.flt_ld_r2.value()),
+            "segdist": bool(self.flt_segdist.isChecked()),
+            "cross_type": str(self.flt_cross_type.currentText()),
+            "seg_p": float(self.flt_seg_p.value()),
+            "het_max": float(self.flt_het_max.value()),
+            "out_name": "filtered",
+        }
+
+        ok, _, _ = self._run_plugin_step(self.PLUGIN_QC_FILTER_PLINK2, params, "Filtering (PLINK2 QC)")
+        if not ok:
+            QMessageBox.critical(self, "Error", "Filtering failed. See log/stderr.txt")
+            return
+
+        # Summarize outputs
+        try:
+            artifacts_path = out_dir / 'artifacts.json'
+            filtered_prefix = ""
+            ph_out = ""
+            if artifacts_path.exists():
+                artifacts = json.loads(artifacts_path.read_text(encoding='utf-8'))
+                filtered_prefix = artifacts.get('filtered_plink_prefix', '')
+                ph_out = artifacts.get('filtered_phenotype_tsv', '')
+            rows = [
+                ("filtered_plink_prefix", filtered_prefix),
+                ("filtered_phenotype.tsv", ph_out),
+                ("filter_summary.tsv", str(out_dir / 'filter_summary.tsv')),
+                ("removed_samples.tsv", str(out_dir / 'removed_samples.tsv')),
+                ("removed_markers.tsv", str(out_dir / 'removed_markers.tsv')),
+            ]
+            import pandas as pd
+            df = pd.DataFrame(rows, columns=['artifact', 'path'])
+            self.results.set_table_df(df, source_path=out_dir / 'filtering_outputs.tsv')
+            try:
+                df.to_csv(out_dir / 'filtering_outputs.tsv', sep='\t', index=False)
+            except Exception:
+                pass
+            self._log_msg(f"[OK] Filtering completed: {out_dir}")
+        except Exception as e:
+            self._log_msg(f"[WARN] Filtering completed but summary failed: {e}")
+
+
+        # Export filtered PLINK to TSV (genotype.tsv + marker_map.tsv) for downstream tools.
+        # NOTE: An older file-converter block was accidentally present here in fix4, which could raise
+        # UnboundLocalError (geno_tsv) and stop after creating an empty folder.
+        try:
+            filt_pref = Path(filtered_prefix) if (filtered_prefix or '').strip() else (out_dir / 'plink' / 'filtered')
+            tsv_dir = out_dir / 'tsv'
+            tsv_dir.mkdir(parents=True, exist_ok=True)
+
+            ok, _, _ = self._run_plugin_step(
+                self.PLUGIN_PLINK_TO_TSV,
+                {'plink_prefix': str(filt_pref), 'out_dir_override': str(tsv_dir)},
+                'PLINK -> TSV (filtered)'
+            )
+            if not ok:
+                raise RuntimeError('PLINK -> TSV (filtered) failed')
+
+            if (ph_out or '').strip() and Path(ph_out).exists():
+                try:
+                    self._safe_copy(Path(ph_out), tsv_dir / 'phenotype.tsv')
+                except Exception:
+                    pass
+
+            self._log_msg(f"[OK] Exported filtered TSV: {tsv_dir}")
+        except Exception as e:
+            self._log_msg(f"[WARN] Filtering completed but TSV export failed: {e}")
 
     def send_prefix_to_gwas(self):
         """Compatibility: send last PLINK output prefix to GWAS tab."""

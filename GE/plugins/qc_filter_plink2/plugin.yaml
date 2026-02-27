@@ -1,0 +1,7 @@
+id: qc_filter_plink2
+name: "Preprocess: QC Filtering (PLINK2)"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py
