@@ -18,6 +18,7 @@ dependencies:
   - pyyaml
   - plotly             # :contentReference[oaicite:5]{index=5}
   - python-kaleido     # plotly画像/PDF出力 :contentReference[oaicite:6]{index=6}
+  - plink2
 
   # -------------------------
   # External tools used by some Python runners
