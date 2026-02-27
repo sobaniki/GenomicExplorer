@@ -52,11 +52,11 @@ install_github <- function(repos) {
 # ---- packages inferred from GE plugins (core vs heavy) ----
 # core: 比較的入れやすく、機能の穴埋めに効く
 cran_core <- c(
-  "ASMap", "onemap", "mappoly", "AlphaSimR", "updog", "rrBLUP", "RAINBOWR", "NBPSeq", "missRanger", "softImpute", "samr", "baySeq"
+  "ASMap", "onemap", "mappoly", "AlphaSimR", "updog", "rrBLUP", "RAINBOWR", "NBPSeq", "missRanger", "softImpute", "samr"
 )
 
 bioc_core <- c(
-  "GBScleanR", "TCC", "clusterSeq", "org.At.tair.db"
+  "GBScleanR", "TCC", "clusterSeq", "org.At.tair.db", "baySeq"
 )
 
 dev_github <- c("hadley/pryr",

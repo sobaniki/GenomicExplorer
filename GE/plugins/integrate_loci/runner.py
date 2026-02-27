@@ -84,6 +84,63 @@ LOD_CANDIDATES = [
     "max_lod",
 ]
 
+# QTL peak tables often include a marker column; if marker_map.tsv is available,
+# we can map marker -> physical bp to align QTL peaks with GWAS/genes.
+MARKER_CANDIDATES = [
+    "marker", "snp", "snp_id", "marker_id", "id", "rs", "locus", "peak_marker", "closest_marker", "best_marker",
+    "markername", "marker_name",
+]
+
+
+def _auto_find_marker_map(qtl_path: Path) -> Optional[Path]:
+    """Try to locate marker_map.tsv near a QTL peaks file (same dir or parents)."""
+    try:
+        p = Path(qtl_path)
+        for base in [p.parent, p.parent.parent, p.parent.parent.parent]:
+            cand = base / "marker_map.tsv"
+            if cand.exists():
+                return cand
+    except Exception:
+        return None
+    return None
+
+
+def _pos_to_bp(pos_val: float, assume_cm_when_small: bool = True) -> int:
+    """Convert a numeric position to bp (heuristic: small values are treated as cM/Mb and scaled by 1e6)."""
+    try:
+        v = float(pos_val)
+    except Exception:
+        return 0
+    if assume_cm_when_small and abs(v) < 5e5:
+        return int(round(v * 1_000_000.0))
+    return int(round(v))
+
+
+def _load_marker_map(marker_map_tsv: Path, normalize_chr: bool) -> Dict[str, tuple]:
+    """Load marker_map.tsv (marker/chr/pos) -> {marker: (chr, pos_bp)}."""
+    try:
+        cols, rows = _read_table_rows(marker_map_tsv)
+    except Exception:
+        return {}
+    m_col = _pick_col(cols, MARKER_CANDIDATES) or _pick_col(cols, ["marker"])
+    chr_col = _pick_col(cols, CHR_CANDIDATES)
+    pos_col = _pick_col(cols, POS_CANDIDATES)
+    if not m_col or not chr_col or not pos_col:
+        return {}
+    mp: Dict[str, tuple] = {}
+    for r in rows:
+        mid = str(r.get(m_col, '')).strip()
+        if not mid:
+            continue
+        chr_ = str(r.get(chr_col, '')).strip()
+        if normalize_chr:
+            chr_ = _strip_chr_prefix(chr_)
+        pos = _safe_int(r.get(pos_col))
+        if not chr_ or pos is None:
+            continue
+        mp[mid] = (chr_, int(pos))
+    return mp
+
 
 def _strip_chr_prefix(x: str) -> str:
     s = str(x).strip()
@@ -296,6 +353,7 @@ def _iter_qtl_peaks(
     lod_threshold: float,
     window_bp: int,
     normalize_chr: bool,
+    marker_map: Optional[Dict[str, tuple]] = None,
 ) -> List[Peak]:
     ds = _dataset_label(path)
     raw = str(path)
@@ -306,16 +364,37 @@ def _iter_qtl_peaks(
         chr_col = _pick_col(cols, CHR_CANDIDATES)
         pos_col = _pick_col(cols, POS_CANDIDATES)
         lod_col = _pick_col(cols, LOD_CANDIDATES)
+        m_col = _pick_col(cols, MARKER_CANDIDATES)
         if not chr_col or not pos_col or not lod_col:
             return []
-        sub = df[[chr_col, pos_col, lod_col]].copy()
-        sub.columns = ["chr", "pos", "lod"]
+        use_cols = [chr_col, pos_col, lod_col] + ([m_col] if m_col else [])
+        sub = df[use_cols].copy()
+        sub.columns = ["chr", "pos", "lod"] + (["marker"] if m_col else [])
         sub["pos"] = _pd.to_numeric(sub["pos"], errors="coerce")
         sub["lod"] = _pd.to_numeric(sub["lod"], errors="coerce")
         sub = sub.dropna(subset=["chr", "pos", "lod"])
         if normalize_chr:
             sub["chr"] = sub["chr"].astype(str).map(_strip_chr_prefix)
-        sub["pos"] = sub["pos"].astype(int)
+
+        # Convert to bp (prefer marker_map mapping when marker column exists)
+        if "marker" in sub.columns and marker_map is not None:
+            def _map_row(r):
+                mk = str(r.get("marker", "")).strip()
+                if mk and mk in marker_map:
+                    try:
+                        chr_use, pos_bp = marker_map[mk]
+                        return str(chr_use), int(pos_bp)
+                    except Exception:
+                        pass
+                return str(r.get("chr", "")), _pos_to_bp(r.get("pos", 0.0))
+            mapped = sub.apply(_map_row, axis=1, result_type='expand')
+            mapped.columns = ["chr", "pos_bp"]
+            sub["chr"] = mapped["chr"].astype(str)
+            sub["pos"] = _pd.to_numeric(mapped["pos_bp"], errors="coerce")
+        else:
+            sub["pos"] = sub["pos"].map(lambda v: _pos_to_bp(v))
+
+        sub["pos"] = _pd.to_numeric(sub["pos"], errors="coerce").astype(int)
         if mode == "threshold":
             sub = sub[sub["lod"] >= float(lod_threshold)]
         else:
@@ -344,6 +423,7 @@ def _iter_qtl_peaks(
     chr_col = _pick_col(cols, CHR_CANDIDATES)
     pos_col = _pick_col(cols, POS_CANDIDATES)
     lod_col = _pick_col(cols, LOD_CANDIDATES)
+    m_col = _pick_col(cols, MARKER_CANDIDATES)
     if not chr_col or not pos_col or not lod_col:
         return []
 
@@ -352,21 +432,29 @@ def _iter_qtl_peaks(
         chr_raw = r.get(chr_col)
         pos_raw = r.get(pos_col)
         lod_raw = r.get(lod_col)
-        pos = _safe_int(pos_raw)
+        pos_f = _safe_float(pos_raw)
         lod = _safe_float(lod_raw)
-        if pos is None or lod is None:
+        if pos_f is None or lod is None:
             continue
         chr_ = _strip_chr_prefix(chr_raw) if normalize_chr else str(chr_raw).strip()
         if not chr_:
             continue
+        mk = str(r.get(m_col, '')).strip() if m_col else ''
+        if marker_map is not None and mk and mk in marker_map:
+            try:
+                chr_, pos = marker_map[mk]
+            except Exception:
+                pos = _pos_to_bp(pos_f)
+        else:
+            pos = _pos_to_bp(pos_f)
         pk = Peak(
             source_type="qtl",
             dataset=ds,
             raw_file=raw,
             chr=chr_,
-            pos=pos,
-            start=pos - int(window_bp),
-            end=pos + int(window_bp),
+            pos=int(pos),
+            start=int(pos) - int(window_bp),
+            end=int(pos) + int(window_bp),
             pvalue=None,
             lod=lod,
         )
@@ -523,6 +611,26 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     window_bp = int(params.get("window_bp") or 100000)
     normalize_chr = bool(params.get("chr_normalize", True))
 
+    # Optional marker_map.tsv to convert QTL coordinates (cM/Mb) -> bp
+    marker_map_path: Optional[Path] = None
+    try:
+        mm = str(params.get("marker_map_tsv") or "").strip()
+        if mm:
+            p = Path(mm)
+            if p.exists():
+                marker_map_path = p
+    except Exception:
+        marker_map_path = None
+    if marker_map_path is None and qtl_files:
+        marker_map_path = _auto_find_marker_map(qtl_files[0])
+
+    marker_map: Optional[Dict[str, tuple]] = None
+    if marker_map_path is not None and marker_map_path.exists():
+        try:
+            marker_map = _load_marker_map(marker_map_path, normalize_chr=normalize_chr)
+        except Exception:
+            marker_map = None
+
     peaks: List[Peak] = []
     for p in gwas_files:
         if not p.exists():
@@ -549,6 +657,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 lod_threshold=qtl_lod_threshold,
                 window_bp=window_bp,
                 normalize_chr=normalize_chr,
+                marker_map=marker_map,
             )
         )
 

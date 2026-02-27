@@ -144,7 +144,7 @@ save_geno_tsv <- function(ids, markers, X, path) {
   setnames(dt, c("id", markers))
   #dt <- data.frame(id = ids,
   #                 as.data.frame(X))
-  fwrite(dt, path, sep = "\t", na = "NA")
+  fwrite(dt, path, sep = "\t", na = "NA", quote = F)
 }
 
 # Summaries
@@ -351,12 +351,12 @@ if (method %in% c("mean", "em", "rf")) {
         mae = qc$mae,
         stringsAsFactors = FALSE
       )
-      fwrite(acc_df, file.path(out_dir, "accuracy_summary.tsv"), sep = "\t")
+      fwrite(acc_df, file.path(out_dir, "accuracy_summary.tsv"), sep = "\t", quote = F, na = "NA")
 
       # Confusion matrix (rows=true, cols=pred)
       conf <- qc$confusion
       conf_df <- data.frame(true = rownames(conf), conf, check.names = FALSE)
-      fwrite(conf_df, file.path(out_dir, "accuracy_confusion.tsv"), sep = "\t")
+      fwrite(conf_df, file.path(out_dir, "accuracy_confusion.tsv"), sep = "\t", quote = F, na = "NA")
     } else if (!is.null(qc) && is.list(qc)) {
       # Record why it was skipped/failed
       acc_df <- data.frame(
@@ -366,7 +366,7 @@ if (method %in% c("mean", "em", "rf")) {
         mask_seed = mask_seed,
         stringsAsFactors = FALSE
       )
-      fwrite(acc_df, file.path(out_dir, "accuracy_summary.tsv"), sep = "\t")
+      fwrite(acc_df, file.path(out_dir, "accuracy_summary.tsv"), sep = "\t", quote = F, na = "NA")
     }
   }
 
@@ -387,8 +387,8 @@ if (method %in% c("mean", "em", "rf")) {
   # summaries
   marker_sum <- make_marker_summary(markers, X0, if (round_to_012) Xround else Ximp)
   sample_sum <- make_sample_summary(ids, X0, if (round_to_012) Xround else Ximp)
-  fwrite(marker_sum, file.path(out_dir, "marker_summary.tsv"), sep = "\t")
-  fwrite(sample_sum, file.path(out_dir, "sample_summary.tsv"), sep = "\t")
+  fwrite(marker_sum, file.path(out_dir, "marker_summary.tsv"), sep = "\t", quote = F, na = "NA")
+  fwrite(sample_sum, file.path(out_dir, "sample_summary.tsv"), sep = "\t", quote = F, na = "NA")
 
   # Keep artifacts.json lightweight and robust: confusion matrix is written as TSV;
   # store only scalar metrics + file path in artifacts.
@@ -424,7 +424,7 @@ if (method %in% c("mean", "em", "rf")) {
       mask_seed = mask_seed
     )
     fwrite(data.frame(status = qc$status, reason = qc$reason, mask_rate = mask_rate, mask_seed = mask_seed, stringsAsFactors = FALSE),
-           file.path(out_dir, "accuracy_summary.tsv"), sep = "\t")
+           file.path(out_dir, "accuracy_summary.tsv"), sep = "\t", quote = F, na = "NA")
     cat("[WARN] quick_accuracy_check requested but not supported for beagle. Skipping.\n")
   }
   beagle_jar <- if (!is.null(p$beagle_jar)) p$beagle_jar else NULL
@@ -469,7 +469,7 @@ if (method %in% c("mean", "em", "rf")) {
     if (any(ids != ids_raw)) {
       cat("[WARN] Sample IDs contained whitespace/duplicates. Writing sanitized IDs to VCF and saving mapping file.\n")
       idmap <- data.frame(original_id = ids_raw, vcf_id = ids, stringsAsFactors = FALSE)
-      fwrite(idmap, file.path(out_dir, "sample_id_map.tsv"), sep = "\t")
+      fwrite(idmap, file.path(out_dir, "sample_id_map.tsv"), sep = "\t", quote = F, na = "NA")
     }
 
     mm <- fread(marker_map_tsv, sep = "\t", header = TRUE, data.table = FALSE)
@@ -642,8 +642,8 @@ if (method %in% c("mean", "em", "rf")) {
     stringsAsFactors = FALSE
   )
 
-  fwrite(marker_sum, file.path(out_dir, "marker_summary.tsv"), sep = "\t")
-  fwrite(sample_sum, file.path(out_dir, "sample_summary.tsv"), sep = "\t")
+  fwrite(marker_sum, file.path(out_dir, "marker_summary.tsv"), sep = "\t", quote = F, na = "NA")
+  fwrite(sample_sum, file.path(out_dir, "sample_summary.tsv"), sep = "\t", quote = F, na = "NA")
 
   write_artifacts(list(
     method = method,

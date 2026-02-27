@@ -4,3 +4,4 @@ GE/*/__pycache__/
 *.dat
 *.txt
 *.pdf
+*.pyc

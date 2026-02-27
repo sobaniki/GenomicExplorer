@@ -12934,6 +12934,9 @@ class GWASTab(QWidget):
         ph = self.pheno_path.text().strip()
         #pl = self.plink_prefix.text().strip()
         tr = self.trait.currentText().strip()
+        # Multi-trait support: pass a comma-separated string when provided.
+        # If empty, runner side will auto-detect numeric traits.
+        traits = tr
 
         if not ph or not Path(ph).exists():
             QMessageBox.warning(self, "Error", "phenotype.tsv not set / not found")
@@ -12941,9 +12944,6 @@ class GWASTab(QWidget):
         #if not pl or not Path(pl + ".bed").exists():
         #    QMessageBox.warning(self, "Error", "PLINK prefix not set or .bed not found")
         #    return
-        if not tr:
-            QMessageBox.warning(self, "Error", "trait is empty")
-            return
 
         #params = {
         #    "plink_prefix": pl,
@@ -12971,11 +12971,13 @@ class GWASTab(QWidget):
             "genotype_tsv": self.geno_tsv.text().strip(),
             "marker_map_tsv": self.marker_map_tsv.text().strip(),
             "phenotype_tsv": ph,
-            "traits": tr, "trait": tr,
             "maf": float(self.maf.text()),
             "missing_max": float(self.missing_max.text()),
             "use_lmm": True if self.use_lmm.currentText() == "TRUE" else False,
         }
+        if traits:
+            params["traits"] = traits
+            params["trait"] = traits
 
         # Optional: export outputs to a user-specified folder (copied by core layer)
         out_root = self.output_dir.text().strip() if hasattr(self, 'output_dir') else ''
@@ -13100,7 +13102,7 @@ class GWASTab(QWidget):
             if df is None:
                 raise RuntimeError("results.tsv not loaded; cannot build Plotly Manhattan plot")
             # store context so the right-pane controls can rebuild the plot
-            self.results.set_plotly_context(df, out_dir, title=f"{plugin_id}: {tr}")
+            self.results.set_plotly_context(df, out_dir, title=f"{plugin_id}: {tr}" if tr else f"{plugin_id}: (auto traits)")
         except Exception as e:
             self.append_log(f"[WARN] plotly manhattan failed: {e}")
 
@@ -13348,8 +13350,7 @@ class QTLBIMTab(QWidget):
 
         params = {
             "cross_rds": cr,
-            "traits": tr, "trait": tr,
-            "step": float(self.step.value()),
+"step": float(self.step.value()),
             "error_prob": float(self.error_prob.value()),
             "map_function": self.map_function.currentText().strip().lower(),
             "model": model,
@@ -13606,8 +13607,7 @@ class QTLTab(QWidget):
         params = {
             "phenotype_tsv": ph,
             "genotype_tsv": ge,
-            "traits": tr, "trait": tr,
-            "mode": mode
+"mode": mode
         }
         if mp and Path(mp).exists():
             params["marker_map_tsv"] = mp
@@ -14026,8 +14026,7 @@ class RQTLTab(QWidget):
 
         params = {
             "cross_rds": cr,
-            "traits": tr, "trait": tr,
-            "analysis_mode": analysis_mode,
+"analysis_mode": analysis_mode,
             "n_perm": int(self.n_perm.value()),
             "alpha": alpha,
             "step": step,
@@ -14044,6 +14043,12 @@ class RQTLTab(QWidget):
             "mqm_step": float(self.mqm_step.value()),
             "mqm_dom": self.mqm_dom.currentText(),
         }
+
+        # Multi-trait support: pass a comma-separated string when provided.
+        # If empty, runner side will auto-detect numeric traits.
+        if tr:
+            params["traits"] = tr
+            params["trait"] = tr
 
         # Cofactor selection refinement (used for CIM/MQM)
         if params["analysis_mode"] in ("cim", "mqm"):
@@ -14177,7 +14182,7 @@ class QTL2Tab(QWidget):
         b_cross.setStyleSheet(GE_BTN_BROWSE_QSS)
         b_cross.clicked.connect(lambda *args, **kwargs: self.pick_cross2())
         self.traits = QLineEdit()
-        self.traits.setPlaceholderText("e.g., trait1 or trait1,trait2")
+        self.traits.setPlaceholderText("e.g., trait1 or trait1,trait2 (blank = auto-detect numeric)")
 
         self.model = QComboBox()
         self.model.addItems([
@@ -14517,9 +14522,6 @@ class QTL2Tab(QWidget):
         if not cr or not Path(cr).exists():
             QMessageBox.warning(self, "Error", "cross2.rds not set / not found")
             return
-        if not traits:
-            QMessageBox.warning(self, "Error", "trait(s) is empty")
-            return
 
         try:
             alpha = float(self.alpha.text())
@@ -14549,7 +14551,6 @@ class QTL2Tab(QWidget):
 
         params = {
             "cross2_rds": cr,
-            "traits": traits,  # comma-separated supported by runner
             "n_perm": int(self.n_perm.value()),
             "kinship_type": self.model.currentText(),
             "model": self.trait.currentText(),
@@ -14568,6 +14569,9 @@ class QTL2Tab(QWidget):
             "effect": self.effect.currentText(),
             "coef_max_peaks": int(self.coef_max_peaks.value()),
         }
+        if traits:
+            params["traits"] = traits
+            params["trait"] = traits
         if method:
             params["method"] = method
         if cov:
@@ -25149,6 +25153,12 @@ class IntegrateTab(QWidget):
         self.pri_window_bp = QSpinBox(); self.pri_window_bp.setRange(0, 2_000_000_000); self.pri_window_bp.setValue(50000); self.pri_window_bp.setSingleStep(1000)
         self.pri_normalize_chr = QComboBox(); self.pri_normalize_chr.addItems(["TRUE", "FALSE"]); self.pri_normalize_chr.setCurrentText("TRUE")
 
+        # Optional marker_map.tsv (marker/chr/pos_bp) to convert QTL peak positions (cM/Mb) -> bp
+        self.pri_marker_map = QLineEdit()
+        b_pri_mm = QPushButton("Browse")
+        b_pri_mm.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_pri_mm.clicked.connect(lambda *a, **k: self._pick_file_lineedit(self.pri_marker_map, "TSV (*.tsv *.txt);;All (*.*)"))
+
         peaks_form = QFormLayout()
         peaks_form.addRow(QLabel("Peak picking"))
 
@@ -25179,6 +25189,10 @@ class IntegrateTab(QWidget):
         #row_w.addStretch(1)
         w_w = QWidget(); w_w.setLayout(row_w)
         peaks_form.addRow('Locus', w_w)
+
+        row_mm = QHBoxLayout(); row_mm.addWidget(self.pri_marker_map); row_mm.addWidget(b_pri_mm)
+        w_mm = QWidget(); w_mm.setLayout(row_mm)
+        peaks_form.addRow('marker_map.tsv (opt)', w_mm)
 
         gbox = QGroupBox("GWAS inputs")
         gv = QVBoxLayout(); gv.addWidget(wg); gv.addWidget(self.tbl_pri_gwas); gbox.setLayout(gv)
@@ -25425,7 +25439,7 @@ class IntegrateTab(QWidget):
         # Phase A: Ranking + Locus view
         # Phase B: Evidence heatmap
         # Phase C: DEG overlay (Volcano/MA) to visually validate DEG evidence
-        self.pri_plot_type = QComboBox(); self.pri_plot_type.addItems(["Ranking", "Locus view", "Evidence heatmap", "DEG overlay"])
+        self.pri_plot_type = QComboBox(); self.pri_plot_type.addItems(["Score (genome)", "Locus view", "Evidence heatmap", "DEG overlay"])
         self.pri_plot_topn = QSpinBox(); self.pri_plot_topn.setRange(10, 1_000_000); self.pri_plot_topn.setValue(300)
         self.pri_plot_locus = QComboBox()
         self.pri_plot_label_topk = QSpinBox(); self.pri_plot_label_topk.setRange(0, 50); self.pri_plot_label_topk.setValue(5)
@@ -25448,7 +25462,7 @@ class IntegrateTab(QWidget):
 
         self.btn_pri_plot_draw = QPushButton("Draw plot")
         self.btn_pri_plot_draw.clicked.connect(lambda *a, **k: self.draw_prioritize_plot())
-        self.btn_pri_plot_draw_ranking = QPushButton("Draw ranking")
+        self.btn_pri_plot_draw_ranking = QPushButton("Draw score (genome)")
         self.btn_pri_plot_draw_ranking.clicked.connect(lambda *a, **k: self.draw_prioritize_plot(kind="ranking"))
         self.btn_pri_plot_draw_locus = QPushButton("Draw locus")
         self.btn_pri_plot_draw_locus.clicked.connect(lambda *a, **k: self.draw_prioritize_plot(kind="locus"))
@@ -25460,7 +25474,7 @@ class IntegrateTab(QWidget):
 
         plot_form = QFormLayout()
         plot_form.addRow("Plot type", self.pri_plot_type)
-        plot_form.addRow("Top N (ranking)", self.pri_plot_topn)
+        plot_form.addRow("Top N (points)", self.pri_plot_topn)
         plot_form.addRow("Locus (locus view)", self.pri_plot_locus)
         plot_form.addRow("Label top K genes", self.pri_plot_label_topk)
         plot_form.addRow("Heatmap mode", self.pri_plot_hm_mode)
@@ -25627,6 +25641,7 @@ class IntegrateTab(QWidget):
         params = {
             "gwas_results": gwas_files,
             "qtl_peaks": qtl_files,
+            "marker_map_tsv": str(self.pri_marker_map.text()).strip() if getattr(self, 'pri_marker_map', None) is not None else "",
             "mode_gwas": self.pri_gwas_pick_mode.currentText(),
             "gwas_top_n": int(self.pri_gwas_top_n.value()),
             "gwas_p_threshold": str(self.pri_gwas_p_threshold.text()).strip(),
@@ -25827,7 +25842,7 @@ class IntegrateTab(QWidget):
         if kind is None:
             try:
                 t = (self.pri_plot_type.currentText() or '').lower()
-                if t.startswith('rank'):
+                if t.startswith('rank') or ('score' in t) or ('genome' in t) or ('manhattan' in t):
                     kind = 'ranking'
                 elif 'heat' in t:
                     kind = 'heatmap'
@@ -25928,76 +25943,133 @@ class IntegrateTab(QWidget):
             QMessageBox.critical(self, 'Plot failed', str(e))
 
     def _pri_make_ranking_plot(self, df: pd.DataFrame, go, qualitative):
-        """Ranking plot: rank vs score, colored by locus."""
+        """Score plot: Manhattan-like genomic position (X) vs score (Y)."""
         import numpy as _np
         import pandas as _pd
+        import re as _re
 
         topn = int(getattr(self, 'pri_plot_topn', None).value()) if getattr(self, 'pri_plot_topn', None) is not None else 300
         d = df.copy()
+
         # Ensure numeric
         if 'rank' in d.columns:
             d['rank'] = _pd.to_numeric(d['rank'], errors='coerce')
         if 'score' in d.columns:
             d['score'] = _pd.to_numeric(d['score'], errors='coerce')
-        d = d[_np.isfinite(d.get('rank'))] if 'rank' in d.columns else d
-        if 'rank' not in d.columns or d['rank'].isna().all():
-            # fallback: order by score
+
+        # Use gene midpoint as genomic position when available
+        pos = None
+        if 'gene_start' in d.columns and 'gene_end' in d.columns:
+            gs = _pd.to_numeric(d['gene_start'], errors='coerce')
+            ge = _pd.to_numeric(d['gene_end'], errors='coerce')
+            pos = (gs + ge) / 2.0
+        elif 'gene_start' in d.columns:
+            pos = _pd.to_numeric(d['gene_start'], errors='coerce')
+        elif 'peak_pos' in d.columns:
+            pos = _pd.to_numeric(d['peak_pos'], errors='coerce')
+        else:
+            pos = _pd.Series(_np.arange(len(d)), index=d.index, dtype=float)
+
+        d['pos_bp'] = pos
+        # Drop invalid
+        d = d.dropna(subset=['score', 'pos_bp'])
+
+        # Choose Top N by rank if available, otherwise by score
+        if 'rank' in d.columns and (not d['rank'].isna().all()):
+            d = d.sort_values('rank', ascending=True)
+        else:
             d = d.sort_values('score', ascending=False)
             d['rank'] = _np.arange(1, len(d) + 1)
-        d = d.sort_values('rank', ascending=True)
-        d = d[d['rank'] <= float(topn)]
+        d = d.head(int(topn))
 
-        # palette
+        # Normalize chromosome labels
+        if 'chr' not in d.columns:
+            d['chr'] = 'NA'
+        d['chr'] = d['chr'].astype(str).fillna('NA').map(lambda s: s[3:] if s.lower().startswith('chr') else s)
+
+        def _chr_key(s: str):
+            s = str(s).strip()
+            s2 = s
+            m = _re.fullmatch(r"(\d+)", s2)
+            if m:
+                return (0, int(m.group(1)), s)
+            up = s2.upper()
+            if up in {'X', 'Y', 'W', 'Z', 'MT', 'M'}:
+                order = {'X': 1001, 'Y': 1002, 'W': 1003, 'Z': 1004, 'MT': 1005, 'M': 1005}
+                return (1, order.get(up, 2000), s)
+            return (2, s2, s)
+
+        chrs = sorted(d['chr'].unique().tolist(), key=_chr_key)
+        # chromosome lengths from plotted points
+        chr_max = {c: float(_pd.to_numeric(d.loc[d['chr'] == c, 'pos_bp'], errors='coerce').max()) for c in chrs}
+        gap = 1_000_000.0
+        offsets = {}
+        cur = 0.0
+        for c in chrs:
+            offsets[c] = cur
+            cur += (chr_max.get(c, 0.0) if _np.isfinite(chr_max.get(c, 0.0)) else 0.0) + gap
+
+        d['x'] = d.apply(lambda r: float(offsets.get(str(r['chr']), 0.0)) + float(r['pos_bp']), axis=1)
+
+        # palette (alternate by chromosome)
         try:
             pal = getattr(qualitative, 'Plotly', None) or getattr(qualitative, 'D3', None) or ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
         except Exception:
             pal = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
 
-        # Build traces by locus
         fig = go.Figure()
-        if 'locus_id' not in d.columns:
-            d['locus_id'] = 'NA'
-        loci = [str(x) for x in d['locus_id'].fillna('NA').astype(str).unique().tolist()]
-        loci = loci[:200]  # safety
-        color_map = {l: pal[i % len(pal)] for i, l in enumerate(sorted(loci))}
+        hover_cols = ['gene_id', 'locus_id', 'chr', 'pos_bp', 'distance', 'peak_source', 'peak_pos', 'rank', 'score']
 
-        hover_cols = ['gene_id', 'chr', 'distance', 'deg_hit', 'blast_hit', 'go_hit', 'peak_source']
-        for locus in sorted(loci):
-            dd = d[d['locus_id'].astype(str) == str(locus)]
+        for i, c in enumerate(chrs):
+            dd = d[d['chr'] == c]
             if dd.empty:
                 continue
             custom = []
             for _, r in dd.iterrows():
-                custom.append([str(r.get(c, '')) for c in hover_cols])
+                custom.append([str(r.get(k, '')) for k in hover_cols])
             fig.add_trace(
                 go.Scatter(
-                    x=dd['rank'],
+                    x=dd['x'],
                     y=dd['score'],
                     mode='markers',
-                    name=str(locus),
-                    marker=dict(size=7, opacity=0.85, color=color_map.get(str(locus))),
+                    name=str(c),
+                    marker=dict(size=6, opacity=0.85, color=pal[i % len(pal)]),
                     customdata=custom,
                     hovertemplate=(
                         "<b>gene</b>=%{customdata[0]}<br>"
-                        "<b>chr</b>=%{customdata[1]}<br>"
-                        "<b>distance</b>=%{customdata[2]}<br>"
-                        "<b>DEG</b>=%{customdata[3]}  <b>BLAST</b>=%{customdata[4]}  <b>GO</b>=%{customdata[5]}<br>"
-                        "<b>peak</b>=%{customdata[6]}<br>"
-                        "<b>rank</b>=%{x}  <b>score</b>=%{y}<extra></extra>"
+                        "<b>locus</b>=%{customdata[1]}<br>"
+                        "<b>chr</b>=%{customdata[2]}  <b>bp</b>=%{customdata[3]}<br>"
+                        "<b>distance</b>=%{customdata[4]}<br>"
+                        "<b>peak</b>=%{customdata[5]}  <b>peak_pos</b>=%{customdata[6]}<br>"
+                        "<b>rank</b>=%{customdata[7]}  <b>score</b>=%{customdata[8]}<extra></extra>"
                     ),
                 )
             )
 
+        # X ticks at chromosome midpoints
+        tickvals = []
+        ticktext = []
+        shapes = []
+        for c in chrs:
+            start = offsets.get(c, 0.0)
+            length = chr_max.get(c, 0.0) if _np.isfinite(chr_max.get(c, 0.0)) else 0.0
+            tickvals.append(start + length / 2.0)
+            ticktext.append(str(c))
+            # boundary line
+            shapes.append(dict(type='line', x0=start - gap/2.0, x1=start - gap/2.0, y0=0, y1=1, xref='x', yref='paper', line=dict(width=1, color='rgba(0,0,0,0.15)')))
+
         fig.update_layout(
-            title=f"Prioritize: Candidate ranking (Top {topn})",
-            xaxis_title='Rank',
+            title=f"Prioritize: Score by genomic position (Top {topn})",
+            xaxis_title='Genomic position (concatenated by chromosome)',
             yaxis_title='Score',
+            xaxis=dict(tickmode='array', tickvals=tickvals, ticktext=ticktext),
             template='plotly_white',
-            legend_title='locus_id',
-            margin=dict(l=60, r=20, t=60, b=50),
+            legend_title='chr',
+            margin=dict(l=60, r=20, t=60, b=60),
             height=720,
+            shapes=shapes,
         )
-        return fig, f"Integrate / Prioritize: Ranking (Top {topn})"
+        return fig, f"Integrate / Prioritize: Score-by-position (Top {topn})"
 
     def _pri_make_locus_plot(self, df: pd.DataFrame, go, qualitative, out_dir: Path):
         """Locus view: peaks + gene track within a locus."""
@@ -26663,6 +26735,12 @@ class IntegrateTab(QWidget):
         self.window_bp = QSpinBox(); self.window_bp.setRange(0, 2_000_000_000); self.window_bp.setValue(50000); self.window_bp.setSingleStep(1000)
         self.normalize_chr = QComboBox(); self.normalize_chr.addItems(["TRUE", "FALSE"]); self.normalize_chr.setCurrentText("TRUE")
 
+        # Optional marker_map.tsv to convert QTL positions (cM/Mb) -> bp by marker name
+        self.ed_locus_marker_map = QLineEdit()
+        b_mm = QPushButton("Browse")
+        b_mm.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_mm.clicked.connect(lambda *a, **k: self._pick_file_lineedit(self.ed_locus_marker_map, "TSV (*.tsv *.txt);;All (*.*)"))
+
         self.ed_out_peaks_merged = QLineEdit()
         self.ed_out_peaks_merged.setReadOnly(True)
 
@@ -26686,6 +26764,10 @@ class IntegrateTab(QWidget):
         opt.addRow("QTL LOD threshold", self.qtl_lod_threshold)
         opt.addRow("window_bp (±)", self.window_bp)
         opt.addRow("normalize_chr", self.normalize_chr)
+
+        row_mm = QHBoxLayout(); row_mm.addWidget(self.ed_locus_marker_map); row_mm.addWidget(b_mm)
+        w_mm = QWidget(); w_mm.setLayout(row_mm)
+        opt.addRow("marker_map.tsv (opt)", w_mm)
 
         row_out = QHBoxLayout()
         row_out.addWidget(self.ed_out_peaks_merged)
@@ -26771,6 +26853,7 @@ class IntegrateTab(QWidget):
             "qtl_lod_threshold": str(self.qtl_lod_threshold.text()).strip(),
             "window_bp": int(self.window_bp.value()),
             "chr_normalize": True if self.normalize_chr.currentText() == "TRUE" else False,
+            "marker_map_tsv": str(self.ed_locus_marker_map.text()).strip() if getattr(self, 'ed_locus_marker_map', None) is not None else "",
         }
 
         run_dir = Path(tempfile.mkdtemp(prefix="integrate_loci_"))

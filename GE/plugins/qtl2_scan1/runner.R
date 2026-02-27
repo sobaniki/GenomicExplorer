@@ -101,14 +101,15 @@ p <- fromJSON(params_path)
 cross2_rds <- if (!is.null(p$cross2_rds)) p$cross2_rds else NULL
 if (is.null(cross2_rds) || !file.exists(cross2_rds)) stop("cross2_rds not found")
 
-# trait(s): allow single string (trait) or comma-separated (traits)
+# trait(s): allow single string (trait) or comma-separated (traits); blank => auto-detect numeric traits
 traits_raw <- NULL
 if (!is.null(p$traits) && nzchar(p$traits)) traits_raw <- p$traits
 if (is.null(traits_raw) && !is.null(p$trait) && nzchar(p$trait)) traits_raw <- p$trait
-if (is.null(traits_raw)) stop("trait(s) is required")
-traits <- trimws(unlist(strsplit(traits_raw, "[,;]+", perl=TRUE)))
-traits <- traits[nzchar(traits)]
-if (length(traits) == 0) stop("trait(s) is required")
+traits <- character(0)
+if (!is.null(traits_raw) && nzchar(traits_raw)) {
+  traits <- trimws(unlist(strsplit(as.character(traits_raw), '[,;]+', perl=TRUE)))
+  traits <- traits[nzchar(traits)]
+}
 
 n_perm <- if (!is.null(p$n_perm)) as.integer(p$n_perm) else 100L
 n_perm <- max(0L, n_perm)
@@ -163,6 +164,39 @@ if (grepl("\\.rds$", cross2_rds, perl = T)) {
   cross2 <- read_cross2(cross2_rds)
 }
 if (is.null(cross2$pheno)) stop("cross2$pheno is missing")
+
+# auto-detect traits if not specified: keep numeric-ish columns
+
+detect_numeric_traits <- function(df, min_nonmiss=5L, max_new_na_frac=0.05) {
+  if (is.null(df) || ncol(df) == 0) return(character(0))
+  # cross2$pheno can be a matrix in some qtl2 versions; [["colname"]] fails for matrices.
+  df <- as.data.frame(df, stringsAsFactors = FALSE)
+  out <- character(0)
+  for (c in colnames(df)) {
+    v <- df[[c]]
+    if (is.numeric(v) || is.integer(v)) {
+      vv <- suppressWarnings(as.numeric(v))
+      ok <- is.finite(vv)
+      if (sum(ok) >= min_nonmiss && length(unique(vv[ok])) >= 2) out <- c(out, c)
+    } else {
+      v_chr <- as.character(v)
+      suppressWarnings(v_num <- as.numeric(v_chr))
+      n_orig <- sum(!is.na(v_chr) & nzchar(v_chr))
+      n_new_na <- sum(is.na(v_num) & !is.na(v_chr) & nzchar(v_chr))
+      ok <- is.finite(v_num)
+      if (sum(ok) >= min_nonmiss && (n_new_na / max(1, n_orig)) <= max_new_na_frac && length(unique(v_num[ok])) >= 2) {
+        out <- c(out, c)
+      }
+    }
+  }
+  out
+}
+
+if (length(traits) == 0) {
+  traits <- detect_numeric_traits(cross2$pheno)
+  cat('[qtl2_scan1] auto-detected traits n=', length(traits), '\n')
+}
+if (length(traits) == 0) stop('No numeric traits found in cross2$pheno; please specify trait(s).')
 
 # validate traits
 avail_traits <- colnames(cross2$pheno)

@@ -30,7 +30,16 @@ p <- fromJSON(params_path)
 cross_rds <- if (!is.null(p$cross_rds)) p$cross_rds else NULL
 if (is.null(cross_rds) || !file.exists(cross_rds)) stop("cross_rds not found")
 
-trait <- if (!is.null(p$trait) && nchar(p$trait) > 0) p$trait else NULL
+# trait(s): blank => auto-detect numeric phenotype columns
+traits_raw <- NULL
+if (!is.null(p$traits) && nchar(p$traits) > 0) traits_raw <- p$traits
+if (is.null(traits_raw) && !is.null(p$trait) && nchar(p$trait) > 0) traits_raw <- p$trait
+traits <- character(0)
+if (!is.null(traits_raw) && nzchar(traits_raw)) {
+  traits <- trimws(unlist(strsplit(as.character(traits_raw), '[,;]+', perl=TRUE)))
+  traits <- traits[nzchar(traits)]
+}
+trait <- NULL
 #if (is.null(trait)) stop("trait is required")
 
 analysis_mode <- if (!is.null(p$analysis_mode) && nchar(p$analysis_mode) > 0) tolower(p$analysis_mode) else "scanone"
@@ -110,8 +119,36 @@ build_marker_map <- function(cross) {
   do.call(rbind, out)
 }
 
+# Helper: detect numeric traits from a phenotype table (data.frame-like).
+# - Keeps numeric/integer columns
+# - Also keeps character/factor columns that are safely coercible to numeric
+detect_numeric_traits <- function(ph, min_nonmiss=5L, max_new_na_frac=0.05) {
+  if (is.null(ph) || ncol(ph) == 0) return(character(0))
+  ph <- as.data.frame(ph, stringsAsFactors = FALSE)
+  out <- character(0)
+  for (c in colnames(ph)) {
+    v <- ph[[c]]
+    if (is.numeric(v) || is.integer(v)) {
+      vv <- suppressWarnings(as.numeric(v))
+      ok <- is.finite(vv)
+      if (sum(ok) >= min_nonmiss && length(unique(vv[ok])) >= 2) out <- c(out, c)
+    } else {
+      v_chr <- as.character(v)
+      suppressWarnings(v_num <- as.numeric(v_chr))
+      n_orig <- sum(!is.na(v_chr) & nzchar(v_chr))
+      n_new_na <- sum(is.na(v_num) & !is.na(v_chr) & nzchar(v_chr))
+      ok <- is.finite(v_num)
+      if (sum(ok) >= min_nonmiss && (n_new_na / max(1, n_orig)) <= max_new_na_frac && length(unique(v_num[ok])) >= 2) {
+        out <- c(out, c)
+      }
+    }
+  }
+  out
+}
+
 marker_lod_scan <- function(cross, trait) {
   ph <- qtl::pull.pheno(cross)
+  ph <- as.data.frame(ph, stringsAsFactors = FALSE)
   y_all <- ph[[trait]]
   if (is.null(y_all)) stop("trait not found")
   G <- qtl::pull.geno(cross)
@@ -225,9 +262,6 @@ cap_n_marcovar <- function(n_marcovar, cross) {
 cat("[QTL] loading cross: ", cross_rds, "\n")
 cross <- readRDS(cross_rds)
 
-if (is.null(trait)) {
-  trait <- names(cross$pheno)[2]
-}
 
 if (inherits(cross, "cross")) {
   cl <- class(cross)
@@ -248,8 +282,19 @@ to_drop <- unlist(lapply(dup, function(z) z[-1]))
 cross <- drop.markers(cross, to_drop)
 
 ph <- qtl::pull.pheno(cross)
-if (!(trait %in% colnames(ph))) {
-  stop(sprintf("trait '%s' not found in cross$pheno. Available: %s", trait, paste(colnames(ph), collapse=", ")))
+
+# Auto-detect traits if not specified: keep numeric-ish columns only
+if (length(traits) == 0) {
+  traits <- detect_numeric_traits(ph)
+  cat('[QTL] auto-detected traits n=', length(traits), '\n')
+}
+if (length(traits) == 0) stop('No numeric traits found in cross$pheno; please specify trait(s).')
+
+# validate traits
+ph_cols <- colnames(as.data.frame(ph, stringsAsFactors = FALSE))
+missing_traits <- setdiff(traits, ph_cols)
+if (length(missing_traits) > 0) {
+  stop(sprintf('trait(s) not found in cross$pheno: %s. Available: %s', paste(missing_traits, collapse=','), paste(ph_cols, collapse=',')))
 }
 
 cat("[QTL] calc.genoprob step=", step, " error_prob=", error_prob, " map=", map_function, "\n")
@@ -259,6 +304,20 @@ cross <- qtl::calc.genoprob(cross,
                             error.prob = error_prob, 
                             map.function = map_function,
                             stepwidth = "fixed")
+
+
+# Keep processed cross for multi-trait runs
+cross_base <- cross
+out_dir_root <- out_dir
+
+safe_name <- function(x) {
+  s <- gsub('[^A-Za-z0-9._-]+', '_', as.character(x))
+  if (nchar(s) == 0) s <- 'trait'
+  if (nchar(s) > 64) s <- substr(s, 1, 64)
+  s
+}
+
+index <- data.frame(trait=character(0), out_subdir=character(0), stringsAsFactors=FALSE)
 
 cofactors_selected <- character(0)
 cofactors_df <- NULL
@@ -358,6 +417,22 @@ run_cim_stable <- function(cross, trait, method, window, n_marcovar, do_perm = F
   n_used <- if ("n.marcovar" %in% cim_fm && !is.null(args0$n.marcovar)) as.integer(args0$n.marcovar) else NA_integer_
   list(lod = res, warns = warns_all, n_marcovar_used = n_used)
 }
+
+for (i in seq_along(traits)) {
+  trait <- traits[i]
+  out_dir <- out_dir_root
+  out_sub <- '.'
+  if (length(traits) > 1 && i > 1) {
+    out_sub <- file.path('traits', safe_name(trait))
+    out_dir <- file.path(out_dir_root, out_sub)
+  }
+  dir.create(out_dir, recursive=TRUE, showWarnings=FALSE)
+
+  # reset per-trait state
+  cross <- cross_base
+  cofactors_selected <- character(0)
+  cofactors_df <- NULL
+
 
 lod <- NULL
 perm <- NULL
@@ -744,4 +819,17 @@ artifacts <- list(
 for (nm in names(extra_files)) artifacts[[nm]] <- extra_files[[nm]]
 
 write(toJSON(artifacts, auto_unbox = TRUE, pretty = TRUE), file = file.path(out_dir, "artifacts.json"))
+
+  # index
+  index <- rbind(index, data.frame(trait=trait, out_subdir=out_sub, stringsAsFactors=FALSE))
+}
+
+# restore root out_dir
+out_dir <- out_dir_root
+if (nrow(index) > 1) {
+  data.table::fwrite(index, file.path(out_dir_root, 'traits_index.tsv'), sep='	')
+  write(toJSON(list(traits=index$trait, default_trait=index$trait[1], index='traits_index.tsv'), auto_unbox=TRUE, pretty=TRUE), file=file.path(out_dir_root, 'traits.json'))
+}
+
 cat("[QTL] done\n")
+sink()
