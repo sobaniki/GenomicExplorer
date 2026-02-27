@@ -91,6 +91,8 @@ In Genotype Imputation, users can select a method from mean/EM/RF (RandomForest)
 
 ### GP (Genomic Prediction)
 
+<img width="300" height="300" alt="gp_scatter_2x2_plotly" src="https://github.com/user-attachments/assets/a908ef65-76dd-4fbd-9db6-65f3a01c3e2c" />
+
 Both single trait and multi-trait models are implemented.
 
 GenomicExplorer mainly depends on BGLR, a popular R package for GP (Perez and de los Campos, 2014). 
@@ -109,6 +111,7 @@ For single trait, a fast package, ranger, is adopted in GenomicExplorer. For mul
 [RAINBOWR](https://github.com/KosukeHamazaki/RAINBOWR)
 
 ### GWAS (Genome-Wide Association Study)
+<img width="350" height="200" alt="manhattan" src="https://github.com/user-attachments/assets/a7bc9abc-a625-4756-8644-2300ae0241fd" />
 
 Linear Mixed Model (LMM) and other methods are implemented. The R package gaston is used for LMM.
 
@@ -118,7 +121,7 @@ Linear Mixed Model (LMM) and other methods are implemented. The R package gaston
 
 ### RNA-seq (Transcriptome analysis)
 
-<img width="458" height="422" alt="Screenshot from 2026-02-26 16-05-41" src="https://github.com/user-attachments/assets/ba66c7a4-cdd6-4203-a0db-2d93d2a70302" />
+<img width="229" height="211" alt="Screenshot from 2026-02-26 16-05-41" src="https://github.com/user-attachments/assets/ba66c7a4-cdd6-4203-a0db-2d93d2a70302" />
 
 DEG (Differentially Expressed Genes), sample clustering/dimension reduction, gene clustering model and GO (Gene Ontology) enrichment analyses are implemented.
 
@@ -128,6 +131,8 @@ For non-model organisms, GO DB (DataBase) builder is also implemented.
 [GOstats](https://www.bioconductor.org/packages/release/bioc/html/GOstats.html)  
 
 ### Map (Linkage Map Construction)
+
+<img width="350" height="225" alt="map_plotly" src="https://github.com/user-attachments/assets/acc5f135-ac75-4927-a1a1-8d783cb5e183" />
 
 Three R packages for linkage map construction can be used in GenomicExplorer.
 
