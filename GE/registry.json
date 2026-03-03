@@ -417,6 +417,14 @@
       }
     },
     {
+      "id": "qtl_mppr",
+      "path": "./plugins/qtl_mppr",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
       "id": "rnaseq_build_orgdb",
       "path": "./plugins/rnaseq_build_orgdb",
       "env": {

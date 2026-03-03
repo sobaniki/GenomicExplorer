@@ -26,6 +26,198 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 
 
+def _parse_ordermarkers2(path: Path) -> pd.DataFrame:
+    """Parse OrderMarkers2 stdout and return a marker table.
+
+    The OrderMarkers2 output is a plain text file with blocks like:
+      #*** LG = 1 likelihood = ...
+      #marker_number\tmale_position\tfemale_position ...
+      498\t0.0\t0.0 ...
+
+    We parse only the first 3 columns and keep linkage group id.
+    """
+    rows = []
+    cur_lg: str | None = None
+    with path.open("r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            if not line:
+                continue
+            line = line.rstrip("\n")
+            if not line:
+                continue
+
+            if line.startswith("#*** LG"):
+                # e.g. "#*** LG = 1 likelihood = -2472.9"
+                try:
+                    after = line.split("=", 1)[1].strip()
+                    cur_lg = after.split()[0].strip()
+                except Exception:
+                    cur_lg = None
+                continue
+
+            if line.startswith("#"):
+                continue
+
+            parts = line.split("\t")
+            if len(parts) < 3:
+                # some Lep-MAP3 outputs may be space separated
+                parts = line.split()
+            if len(parts) < 3:
+                continue
+
+            try:
+                mnum = int(parts[0])
+                mpos = float(parts[1])
+                fpos = float(parts[2])
+            except Exception:
+                continue
+
+            rows.append({"lg": str(cur_lg or "NA"), "marker_number": mnum, "male_pos": mpos, "female_pos": fpos})
+
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+
+    # sexAveraged=1 is commonly used; still be robust.
+    df["pos_cM"] = (df["male_pos"].astype(float) + df["female_pos"].astype(float)) / 2.0
+    return df
+
+
+def _iter_vcf_records(vcf_path: Path):
+    """Yield (idx_1based, chrom, pos, id) for each variant line in a VCF/VCF.GZ."""
+    import gzip
+
+    opener = gzip.open if vcf_path.suffix.lower() == ".gz" else open
+    with opener(vcf_path, "rt", encoding="utf-8", errors="ignore") as f:
+        idx = 0
+        for line in f:
+            if not line or line.startswith("#"):
+                continue
+            idx += 1
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) < 3:
+                continue
+            chrom = parts[0]
+            pos = parts[1]
+            vid = parts[2]
+            yield idx, chrom, pos, vid
+
+
+def _map_marker_numbers_to_vcf_ids(vcf_path: Path, marker_numbers: list[int]) -> dict[int, str]:
+    """Best-effort mapping from Lep-MAP3 marker_number to VCF ID.
+
+    IMPORTANT: This assumes marker_number corresponds to the 1-based order of variants
+    in the provided VCF (excluding header lines). This is true for common Lep-MAP3
+    workflows that ingest a VCF via ParentCall2.
+
+    If the assumption is violated (e.g., marker numbers are renumbered after filtering),
+    the mapping will be incomplete or incorrect. We therefore:
+      * fall back to using marker_number as marker id when mapping is missing
+      * write a note file to explain the assumption
+    """
+    want = sorted({int(x) for x in marker_numbers if int(x) > 0})
+    if not want:
+        return {}
+
+    want_set = set(want)
+    max_idx = want[-1]
+    out: dict[int, str] = {}
+    seen: dict[str, int] = {}
+
+    for idx, chrom, pos, vid in _iter_vcf_records(vcf_path):
+        if idx > max_idx and len(out) == len(want_set):
+            break
+        if idx not in want_set:
+            continue
+        name = (vid or "").strip()
+        if name in {"", "."}:
+            name = f"{chrom}:{pos}"
+
+        # make unique
+        n = seen.get(name, 0)
+        if n > 0:
+            name2 = f"{name}__dup{n+1}"
+        else:
+            name2 = name
+        seen[name] = n + 1
+
+        out[int(idx)] = name2
+        if len(out) == len(want_set):
+            break
+    return out
+
+
+def _write_map_outputs(
+    out_dir: Path,
+    *,
+    order_out: Path,
+    vcf_path: Optional[Path] = None,
+) -> Tuple[bool, List[str]]:
+    """Parse OrderMarkers2 output and write standardized map outputs.
+
+    Returns (ok, notes)
+    """
+    notes: List[str] = []
+
+    if not order_out.exists() or order_out.stat().st_size <= 0:
+        return False, ["OrderMarkers2 output not found or empty."]
+
+    df = _parse_ordermarkers2(order_out)
+    if df.empty:
+        return False, ["Failed to parse OrderMarkers2 output."]
+
+    # map marker_number -> marker id (best-effort)
+    id_map: dict[int, str] = {}
+    if vcf_path is not None and vcf_path.exists():
+        try:
+            id_map = _map_marker_numbers_to_vcf_ids(vcf_path, df["marker_number"].astype(int).tolist())
+            notes.append(
+                "marker_number→VCF ID mapping was attempted assuming marker_number is the 1-based variant index in the VCF (non-header lines)."
+            )
+            notes.append(f"VCF mapping hits: {len(id_map)}/{df.shape[0]} markers")
+        except Exception as e:
+            notes.append(f"VCF mapping failed: {e}")
+
+    df["marker"] = df["marker_number"].map(lambda x: id_map.get(int(x), str(int(x))))
+
+    # Sort and write
+    df = df.sort_values(["lg", "pos_cM", "marker"], kind="mergesort")
+    map_markers = df[["lg", "marker", "pos_cM", "marker_number", "male_pos", "female_pos"]].copy()
+    map_markers.to_csv(out_dir / "map_markers.tsv", sep="\t", index=False)
+
+    # mppR / common format: marker, chr, pos (cM)
+    marker_map = df[["marker", "lg", "pos_cM"]].copy()
+    marker_map = marker_map.rename(columns={"lg": "chr", "pos_cM": "pos"})
+    marker_map.to_csv(out_dir / "marker_map.tsv", sep="\t", index=False)
+
+    # LG length table
+    grp = df.groupby("lg", as_index=False).agg(n_markers=("marker", "size"), length_cM=("pos_cM", "max"))
+    grp = grp.sort_values(["lg"], kind="mergesort")
+    grp.to_csv(out_dir / "map_lengths.tsv", sep="\t", index=False)
+
+    # basic plot
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        plt.figure()
+        plt.bar(range(len(grp)), grp["length_cM"].astype(float))
+        plt.xticks(range(len(grp)), grp["lg"].astype(str), rotation=90)
+        plt.xlabel("LG")
+        plt.ylabel("length (cM)")
+        plt.title("Linkage map length")
+        plt.tight_layout()
+        plt.savefig(out_dir / "map_lengths.png", dpi=150)
+        plt.close()
+    except Exception as e:
+        notes.append(f"Failed to write map_lengths.png: {e}")
+
+    # human-readable notes
+    (out_dir / "map_note.txt").write_text("\n".join(notes) + "\n", encoding="utf-8")
+    return True, notes
+
+
 def _log_write(log_path: Path, lines: List[str]) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -269,7 +461,8 @@ def main() -> int:
             jar_path=jar,
             mem_gb=mem_gb,
             module="OrderMarkers2",
-            args_kv={**base_kv, "data": str(cur_data), "map": str(map_file), "sexAveraged": int(1)},
+            #args_kv={**base_kv, "data": str(cur_data), "map": str(map_file), "sexAveraged": int(1)},
+            args_kv={**base_kv, "data": str(cur_data), "map": str(map_file)},
             extra_args=extra_order,
             out_stdout=order_out,
             out_stderr=work_dir / f"{prefix}.ordermarkers2.stderr.txt",
@@ -296,17 +489,25 @@ def main() -> int:
 
     _log_write(out_dir / "run.log", log_lines)
 
-    # Minimal outputs: placeholders for now (parsing OrderMarkers2 can be implemented later)
-    msg = "Lep-MAP3 pipeline executed (best-effort). Parse/convert outputs later if needed."
-    if not produced_files:
-        msg = "Lep-MAP3 did not produce any outputs (best-effort scaffold). Check run.log and stderr files."
-    _placeholder_outputs(out_dir, msg)
+    # Build standardized outputs for GUI + downstream tools
+    order_copy = out_dir / order_out.name
+    vcf_path = Path(str(params.get("vcf_path", "") or "")).expanduser()
+    ok, notes = _write_map_outputs(out_dir, order_out=order_copy if order_copy.exists() else order_out, vcf_path=vcf_path if vcf_path.exists() else None)
+
+    if ok:
+        # keep a short status file (GUI doesn't rely on it, but users appreciate it)
+        (out_dir / "status.txt").write_text("Lep-MAP3 map parsed successfully.\n", encoding="utf-8")
+        produced_files.extend(["map_markers.tsv", "map_lengths.tsv", "marker_map.tsv", "map_lengths.png", "map_note.txt", "status.txt"])
+    else:
+        msg = "Lep-MAP3 pipeline executed, but map parsing failed.\n" + "\n".join(notes)
+        _placeholder_outputs(out_dir, msg)
+        produced_files.append("error_message.txt")
 
     _write_artifacts(
         out_dir,
         default_table="map_markers.tsv",
         default_plot="map_lengths.png",
-        extra_files=sorted(set(produced_files + ["run.log", "error_message.txt"]))
+        extra_files=sorted(set(produced_files + ["run.log"]))
     )
     return 0
 
@@ -320,10 +521,10 @@ def _write_artifacts(
     art = {
         "table": default_table,
         "plot": default_plot,
-        "tables": ["map_markers.tsv", "map_lengths.tsv"],
+        "tables": ["map_markers.tsv", "map_lengths.tsv", "marker_map.tsv"],
         "plots": ["map_lengths.png"],
         "files": extra_files or [],
-        "note": "Lep-MAP3 scaffold: provide jar + java, then tune step args; parsing outputs can be added later.",
+        "note": "Lep-MAP3 scaffold: best-effort pipeline (ParentCall2/Filtering2/SeparateChromosomes2/OrderMarkers2) with map_markers.tsv + marker_map.tsv outputs.",
     }
     (out_dir / "artifacts.json").write_text(json.dumps(art, indent=2), encoding="utf-8")
 

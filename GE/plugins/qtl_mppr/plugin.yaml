@@ -1,0 +1,43 @@
+id: qtl_mppr
+name: "QTL (mppR: multi-parent / NAM)"
+version: 0.1.0
+description: "Multi-parent QTL mapping (NAM/diallel/factorial) using R package mppR. Supports SIM + optional permutation threshold + peak selection."
+
+runner:
+  language: r
+  entry: runner.R
+
+inputs:
+  - name: geno_off_tsv
+    type: file
+    required: true
+  - name: geno_par_tsv
+    type: file
+    required: true
+  - name: map_tsv
+    type: file
+    required: true
+  - name: pheno_tsv
+    type: file
+    required: true
+  - name: trait
+    type: string
+    required: true
+  - name: cross_ind_tsv
+    type: file
+    required: false
+  - name: par_per_cross_tsv
+    type: file
+    required: true
+
+outputs:
+  - name: lod_profile_tsv
+    path: lod_profile.tsv
+  - name: peaks_tsv
+    path: peaks.tsv
+  - name: perm_thresholds_tsv
+    path: perm_thresholds.tsv
+  - name: lod_plot_png
+    path: lod_plot.png
+  - name: artifacts
+    path: artifacts.json

@@ -14637,6 +14637,328 @@ class QTL2Tab(QWidget):
         return p if p.exists() else None
 
 
+
+
+
+class MPPRTab(QWidget):
+    """QTL via mppR (multi-parent / NAM) including SIM/CIM and GE models.
+
+    This tab is designed to produce the same *standardized* outputs as other QTL tabs:
+      - lod_profile.tsv (chr, pos, lod)
+      - peaks.tsv (optional)
+      - perm_thresholds.tsv (optional)
+
+    Those tables are then rendered by the common QTL Plotly builder in ResultsPane.
+    """
+    PLUGIN_ID = "qtl_mppr"
+
+    def __init__(self, app_log: QTextEdit, results: ResultsPane):
+        super().__init__()
+        self.app_log = app_log
+        self.results = results
+        self.last_out_dir = None  # type: Path | None
+        self._artifacts: dict = {}
+
+        # output_folder (optional)
+        self.output_dir = QLineEdit()
+        b_out = QPushButton('Browse')
+        b_out.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_out.clicked.connect(lambda *args, **kwargs: self.pick_output_dir())
+
+        # Inputs
+        self.geno_off_tsv = QLineEdit()
+        b_go = QPushButton('Browse'); b_go.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_go.clicked.connect(lambda *args, **kwargs: self._pick_file(self.geno_off_tsv, 'Select geno_off.tsv'))
+
+        self.geno_par_tsv = QLineEdit()
+        b_gp = QPushButton('Browse'); b_gp.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_gp.clicked.connect(lambda *args, **kwargs: self._pick_file(self.geno_par_tsv, 'Select geno_par.tsv (optional)'))
+
+        self.map_tsv = QLineEdit()
+        b_map = QPushButton('Browse'); b_map.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_map.clicked.connect(lambda *args, **kwargs: self._pick_file(self.map_tsv, 'Select marker_map.tsv (cM)'))
+
+        self.pheno_tsv = QLineEdit()
+        b_ph = QPushButton('Browse'); b_ph.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_ph.clicked.connect(lambda *args, **kwargs: self._pick_file(self.pheno_tsv, 'Select phenotype.tsv'))
+
+        self.cross_ind_tsv = QLineEdit()
+        b_ci = QPushButton('Browse'); b_ci.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_ci.clicked.connect(lambda *args, **kwargs: self._pick_file(self.cross_ind_tsv, 'Select cross_ind.tsv (optional)'))
+
+        self.par_per_cross_tsv = QLineEdit()
+        b_ppc = QPushButton('Browse'); b_ppc.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_ppc.clicked.connect(lambda *args, **kwargs: self._pick_file(self.par_per_cross_tsv, 'Select par_per_cross.tsv'))
+
+        # Model
+        self.analysis = QComboBox()
+        self.analysis.addItems(['CIM', 'SIM', 'GE_SIM', 'GE_CIM', 'GE_PROC'])
+        self.qeff = QComboBox()
+        self.qeff.addItems(['cr', 'par', 'anc', 'biall'])
+
+        self.traits = QLineEdit()
+        self.traits.setPlaceholderText('trait column (SIM/CIM) or env columns comma-separated (GE)')
+
+        self.vcov = QComboBox()
+        self.vcov.addItems(['UN', 'CS', 'CSE'])
+
+        self.thre_cof = QDoubleSpinBox(); self.thre_cof.setRange(0.0, 100.0); self.thre_cof.setDecimals(2); self.thre_cof.setValue(3.0)
+        self.win_cof = QDoubleSpinBox(); self.win_cof.setRange(0.0, 1e6); self.win_cof.setDecimals(1); self.win_cof.setValue(50.0)
+        self.cim_window = QDoubleSpinBox(); self.cim_window.setRange(0.0, 1e6); self.cim_window.setDecimals(1); self.cim_window.setValue(20.0)
+        self.thre_qtl = QDoubleSpinBox(); self.thre_qtl.setRange(0.0, 100.0); self.thre_qtl.setDecimals(2); self.thre_qtl.setValue(3.0)
+        self.win_qtl = QDoubleSpinBox(); self.win_qtl.setRange(0.0, 1e6); self.win_qtl.setDecimals(1); self.win_qtl.setValue(50.0)
+
+        self.n_perm = QSpinBox(); self.n_perm.setRange(0, 100000); self.n_perm.setSingleStep(10); self.n_perm.setValue(0)
+        self.qval = QLineEdit('0.95')
+        self.cofactors = QLineEdit('')
+        self.cofactors.setPlaceholderText('optional: cofactors markers (GE_CIM), comma-separated')
+
+        self.n_cores = QSpinBox(); self.n_cores.setRange(1, 256); self.n_cores.setValue(1)
+
+        b_run = QPushButton('Run')
+        b_run.setStyleSheet(GE_BTN_RUN_QSS)
+        b_run.clicked.connect(lambda *args, **kwargs: self.run_mppr())
+
+        # Layout
+        form = QFormLayout()
+        try:
+            form.setRowWrapPolicy(QFormLayout.WrapLongRows)
+            form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        except Exception:
+            pass
+
+        out_row = QHBoxLayout(); out_row.setContentsMargins(0,0,0,0)
+        out_row.addWidget(self.output_dir, 1); out_row.addWidget(b_out)
+        w_out = QWidget(); w_out.setLayout(out_row)
+        form.addRow('output_folder', w_out)
+
+        def _row(le, btn):
+            r = QHBoxLayout(); r.setContentsMargins(0,0,0,0)
+            r.addWidget(le, 1); r.addWidget(btn)
+            w = QWidget(); w.setLayout(r); return w
+
+        form.addRow('geno_off.tsv', _row(self.geno_off_tsv, b_go))
+        form.addRow('geno_par.tsv (opt)', _row(self.geno_par_tsv, b_gp))
+        form.addRow('marker_map.tsv (cM)', _row(self.map_tsv, b_map))
+        form.addRow('phenotype.tsv', _row(self.pheno_tsv, b_ph))
+        form.addRow('cross_ind.tsv (opt)', _row(self.cross_ind_tsv, b_ci))
+        form.addRow('par_per_cross.tsv', _row(self.par_per_cross_tsv, b_ppc))
+        
+        form.addRow(b_run)
+
+        w_model = make_pairs_grid([
+            ('analysis', self.analysis),
+            ('Q.eff', self.qeff),
+            ('VCOV (GE)', self.vcov),
+            ('cores', self.n_cores),
+        ], per_row=2)
+        form.addRow('Model', w_model)
+
+        form.addRow('trait(s)', self.traits)
+        form.addRow('GE cofactors (opt)', self.cofactors)
+
+        w_thr = make_pairs_grid([
+            ('thre.cof', self.thre_cof),
+            ('win.cof', self.win_cof),
+            ('cim.window', self.cim_window),
+            ('thre.QTL', self.thre_qtl),
+            ('win.QTL', self.win_qtl),
+        ], per_row=2)
+        form.addRow('Thresholds', w_thr)
+
+        w_perm = make_pairs_grid([
+            ('n_perm', self.n_perm),
+            ('q.val', self.qval),
+        ], per_row=2)
+        form.addRow('Permutation', w_perm)
+
+        box = QGroupBox('QTL (mppR: NAM / multi-family)')
+        box.setLayout(form)
+
+        # View
+        self.view_table = QComboBox()
+        self.view_table.addItems(['lod profile', 'peaks', 'permutation thresholds'])
+        self.view_table.setEnabled(False)
+        self.view_table.currentTextChanged.connect(lambda *args, **kwargs: self.refresh_view())
+
+        self.view_plot = QComboBox()
+        self.view_plot.addItems(['LOD plot (png)'])
+        self.view_plot.setEnabled(False)
+        self.view_plot.currentTextChanged.connect(lambda *args, **kwargs: self.refresh_view())
+
+        b_refresh = QPushButton('Refresh view')
+        b_refresh.setEnabled(False)
+        b_refresh.clicked.connect(lambda *args, **kwargs: self.refresh_view())
+        self._btn_refresh = b_refresh
+
+        vform = QFormLayout()
+        vform.addRow('table', self.view_table)
+        vform.addRow('plot', self.view_plot)
+        vform.addRow('', b_refresh)
+        vbox = QGroupBox('View results (this tab)')
+        vbox.setLayout(vform)
+
+        lay = QVBoxLayout()
+        lay.addWidget(box)
+        lay.addWidget(vbox)
+        lay.addStretch(1)
+        self.setLayout(lay)
+
+    def append_log(self, s: str):
+        self.app_log.append(s)
+
+    def _pick_file(self, le: QLineEdit, title: str):
+        fp, _ = QFileDialog.getOpenFileName(self, title, '', 'TSV (*.tsv *.txt);;All (*.*)')
+        if fp:
+            le.setText(fp)
+
+    def pick_output_dir(self):
+        d = QFileDialog.getExistingDirectory(self, 'Select output folder', '')
+        if d:
+            self.output_dir.setText(d)
+
+    def _read_artifacts(self, out_dir: Path) -> dict:
+        p = out_dir / 'artifacts.json'
+        if p.exists():
+            try:
+                return json.loads(p.read_text(encoding='utf-8', errors='ignore'))
+            except Exception:
+                return {}
+        return {}
+
+    def _populate_view_controls(self):
+        self.view_table.setEnabled(True)
+        self.view_plot.setEnabled(True)
+        self._btn_refresh.setEnabled(True)
+
+    def refresh_view(self):
+        if not self.last_out_dir:
+            return
+        out_dir = Path(self.last_out_dir)
+
+        # table
+        t = (self.view_table.currentText() or '').strip().lower()
+        if 'peak' in t:
+            tsv = out_dir / 'peaks.tsv'
+        elif 'perm' in t:
+            tsv = out_dir / 'perm_thresholds.tsv'
+        else:
+            tsv = out_dir / 'lod_profile.tsv'
+
+        if tsv.exists():
+            try:
+                self.results.load_table(tsv)
+            except Exception as e:
+                self.append_log(f'[mppR] WARN: failed to load table: {e}')
+        else:
+            self.append_log(f'[mppR] WARN: table not found: {tsv.name}')
+
+        # plot
+        png = out_dir / 'plots' / 'lod_profile.png'
+        if png.exists():
+            try:
+                self.results.show_plot(png)
+            except Exception as e:
+                self.append_log(f'[mppR] WARN: failed to show plot: {e}')
+        else:
+            self.results.clear_plot('plot not found')
+
+        # Plotly context (common QTL Scan figure)
+        try:
+            lod_tsv = out_dir / 'lod_profile.tsv'
+            peaks_tsv = out_dir / 'peaks.tsv'
+            thr_tsv = out_dir / 'perm_thresholds.tsv'
+            if lod_tsv.exists():
+                self.results.set_qtl_plotly_context(
+                    lod_profile_tsv=lod_tsv,
+                    peaks_tsv=peaks_tsv if peaks_tsv.exists() else None,
+                    thresholds_tsv=thr_tsv if thr_tsv.exists() else None,
+                    out_dir=out_dir,
+                    title=f'mppR {self.analysis.currentText()}: {self.traits.text().strip() or "trait"}',
+                    pos_unit='auto',
+                )
+        except Exception as e:
+            self.append_log(f'[mppR] WARN: plotly context failed: {e}')
+
+    def run_mppr(self):
+        geno_off = self.geno_off_tsv.text().strip()
+        map_tsv = self.map_tsv.text().strip()
+        pheno = self.pheno_tsv.text().strip()
+        ppc = self.par_per_cross_tsv.text().strip()
+
+        if not geno_off or not Path(geno_off).exists():
+            QMessageBox.warning(self, 'Error', 'geno_off.tsv not set / not found')
+            return
+        if not map_tsv or not Path(map_tsv).exists():
+            QMessageBox.warning(self, 'Error', 'marker_map.tsv not set / not found')
+            return
+        if not pheno or not Path(pheno).exists():
+            QMessageBox.warning(self, 'Error', 'phenotype.tsv not set / not found')
+            return
+        if not ppc or not Path(ppc).exists():
+            QMessageBox.warning(self, 'Error', 'par_per_cross.tsv not set / not found')
+            return
+
+        params = {
+            'geno_off_tsv': geno_off,
+            'geno_par_tsv': self.geno_par_tsv.text().strip(),
+            'map_tsv': map_tsv,
+            'pheno_tsv': pheno,
+            'cross_ind_tsv': self.cross_ind_tsv.text().strip(),
+            'par_per_cross_tsv': ppc,
+            'analysis': self.analysis.currentText(),
+            'Q_eff': self.qeff.currentText(),
+            'traits': self.traits.text().strip(),
+            'trait': self.traits.text().strip(),
+            'VCOV': self.vcov.currentText(),
+            'thre_cof': float(self.thre_cof.value()),
+            'win_cof': float(self.win_cof.value()),
+            'cim_window': float(self.cim_window.value()),
+            'thre_qtl': float(self.thre_qtl.value()),
+            'win_qtl': float(self.win_qtl.value()),
+            'n_perm': int(self.n_perm.value()),
+            'qval': self.qval.text().strip(),
+            'cofactors': self.cofactors.text().strip(),
+            'n_cores': int(self.n_cores.value()),
+        }
+
+        out_root = self.output_dir.text().strip()
+        if out_root:
+            try:
+                Path(out_root).mkdir(parents=True, exist_ok=True)
+                params['export_dir'] = out_root
+            except Exception as e:
+                QMessageBox.warning(self, 'Error', f'Cannot create output_folder: {e}')
+                return
+
+        run_dir = Path(tempfile.mkdtemp(prefix='mppr_run_'))
+        self.append_log(f'Running plugin={self.PLUGIN_ID}')
+        self.append_log(f'work_dir={run_dir}')
+        try:
+            out_dir = Path(run_plugin(REGISTRY_PATH, self.PLUGIN_ID, params, run_dir))
+        except Exception as e:
+            self.append_log(f'[ERROR] {e}')
+            out_guess = run_dir / 'out'
+            for name in ['error.txt', 'stdout.txt', 'stderr.txt', 'run.log']:
+                pp = out_guess / name
+                if pp.exists() and pp.stat().st_size > 0:
+                    self.append_log(f'---- {name} ----')
+                    self.append_log(pp.read_text(encoding='utf-8', errors='ignore'))
+            QMessageBox.critical(self, 'Run failed', str(e))
+            return
+
+        self.last_out_dir = out_dir
+        self.append_log(f'Done. out_dir={out_dir}')
+
+        self._artifacts = self._read_artifacts(out_dir)
+        self._populate_view_controls()
+        self.refresh_view()
+
+    def get_last_peaks_tsv(self) -> Path | None:
+        if not self.last_out_dir:
+            return None
+        p = self.last_out_dir / 'peaks.tsv'
+        return p if p.exists() else None
 class QTLDrawTab(QWidget):
     """Draw QTL plots from an existing output folder (no re-run).
 
@@ -14904,6 +15226,7 @@ class QTLHub(QWidget):
 
         self._rqtl = RQTLTab(app_log, results)
         self._qtl2 = QTL2Tab(app_log, results)
+        self._mppr = MPPRTab(app_log, results)
         self._bim = QTLBIMTab(app_log, results)
         self._draw = QTLDrawTab(app_log, results)
 
@@ -14925,6 +15248,7 @@ class QTLHub(QWidget):
         tabs = QTabWidget()
         tabs.addTab(_wrap_scroll(self._rqtl), "r/qtl (scanone/CIM)")
         tabs.addTab(_wrap_scroll(self._qtl2), "qtl2 (scan1)")
+        tabs.addTab(_wrap_scroll(self._mppr), "mppR (NAM/MPP)")
         tabs.addTab(_wrap_scroll(self._bim), "qtl_bim (Bayes)")
         tabs.addTab(_wrap_scroll(self._draw), "Draw")
 
@@ -14934,7 +15258,7 @@ class QTLHub(QWidget):
 
     def get_last_peaks_tsv(self) -> Path | None:
         candidates: list[Path] = []
-        for t in [self._draw, self._qtl2, self._bim, self._rqtl]:
+        for t in [self._draw, self._mppr, self._qtl2, self._bim, self._rqtl]:
             try:
                 p = t.get_last_peaks_tsv()
             except Exception:
@@ -16728,7 +17052,6 @@ class PreprocessTab(QWidget):
                 w.setPlainText((w.toPlainText() if hasattr(w, 'toPlainText') else '') + msg + '\n')
             except Exception:
                 pass
-
     def run_preprocess(self):
         """File converter: generate all formats except the selected input format."""
         in_mode = (self.mode.currentText() or "").strip().upper()
@@ -16847,6 +17170,77 @@ class PreprocessTab(QWidget):
                 marker_map_tsv = None
             if phenotype_tsv and not phenotype_tsv.exists():
                 phenotype_tsv = None
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
+            return
+
+        outputs = []
+        self.last_plink_prefix = None
+
+        try:
+            for fmt in self.MODES:
+                if fmt == in_mode:
+                    continue
+
+                if fmt == "TSV":
+                    od = out_root / 'tsv'
+                    od.mkdir(parents=True, exist_ok=True)
+                    self._safe_copy(geno_tsv, od / 'genotype.tsv')
+                    if marker_map_tsv:
+                        self._safe_copy(marker_map_tsv, od / 'marker_map.tsv')
+                    if phenotype_tsv:
+                        self._safe_copy(phenotype_tsv, od / 'phenotype.tsv')
+                    outputs.append((fmt, str(od)))
+
+                elif fmt == "VCF":
+                    od = out_root / 'vcf'
+                    od.mkdir(parents=True, exist_ok=True)
+                    out_vcf = od / f"{prefix}.vcf"
+                    ok, _, _ = self._run_plugin_step(self.PLUGIN_TSV_TO_VCF, {'genotype_tsv': str(geno_tsv), 'marker_map_tsv': str(marker_map_tsv) if marker_map_tsv else '', 'out_vcf': str(out_vcf)}, 'TSV -> VCF')
+                    if not ok:
+                        raise RuntimeError('TSV -> VCF failed')
+                    outputs.append((fmt, str(out_vcf)))
+
+                elif fmt == "PLINK":
+                    od = out_root / 'plink'
+                    od.mkdir(parents=True, exist_ok=True)
+                    out_prefix = od / prefix
+                    ok, outp, _ = self._run_plugin_step(self.PLUGIN_TSV_TO_PLINK, {'genotype_tsv': str(geno_tsv), 'marker_map_tsv': str(marker_map_tsv) if marker_map_tsv else '', 'out_prefix': str(out_prefix)}, 'TSV -> PLINK')
+                    if not ok:
+                        raise RuntimeError('TSV -> PLINK failed')
+                    bm = outp / 'bedmatrix.rds'
+                    if bm.exists():
+                        self._safe_copy(bm, od / 'bedmatrix.rds')
+                    self.last_plink_prefix = str(out_prefix)
+                    outputs.append((fmt, str(out_prefix)))
+
+                elif fmt == "RQTL":
+                    od = out_root / 'rqtl'
+                    od.mkdir(parents=True, exist_ok=True)
+                    ok, outp, _ = self._run_plugin_step(self.PLUGIN_TSV_TO_CROSS, {'genotype_tsv': str(geno_tsv), 'phenotype_tsv': str(phenotype_tsv) if phenotype_tsv else '', 'marker_map_tsv': str(marker_map_tsv) if marker_map_tsv else '', 'cross_type': cross_type}, 'TSV -> RQTL')
+                    if not ok:
+                        raise RuntimeError('TSV -> RQTL failed')
+                    for fn in ['cross.rds', 'sample_summary.tsv', 'marker_summary.tsv']:
+                        fsrc = outp / fn
+                        if fsrc.exists():
+                            self._safe_copy(fsrc, od / fn)
+                    outputs.append((fmt, str(od / 'cross.rds')))
+
+                elif fmt == "RQTL2":
+                    od = out_root / 'rqtl2'
+                    od.mkdir(parents=True, exist_ok=True)
+                    ok, _, _ = self._run_plugin_step(self.PLUGIN_TSV_TO_CROSS2, {'genotype_tsv': str(geno_tsv), 'phenotype_tsv': str(phenotype_tsv) if phenotype_tsv else '', 'marker_map_tsv': str(marker_map_tsv) if marker_map_tsv else '', 'cross_type': cross_type, 'out_dir_override': str(od)}, 'TSV -> RQTL2')
+                    if not ok:
+                        raise RuntimeError('TSV -> RQTL2 failed')
+                    outputs.append((fmt, str(od / 'cross2.yaml')))
+
+            import pandas as pd
+            df = pd.DataFrame(outputs, columns=['format', 'path'])
+            summary_path = out_root / 'file_converter_summary.tsv'
+            df.to_csv(summary_path, sep='	', index=False)
+            self.results.set_table_df(df, source_path=summary_path)
+            self._log_msg('[OK] File conversion completed')
 
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
@@ -21340,10 +21734,21 @@ class LinkageMapTab(QWidget):
         self.lep_do_sep = QComboBox(); self.lep_do_sep.addItems(["TRUE", "FALSE"])
         self.lep_do_order = QComboBox(); self.lep_do_order.addItems(["TRUE", "FALSE"])
 
-        self.lep_parent_extra = QLineEdit(); self.lep_parent_extra.setPlaceholderText("extra args for ParentCall2 (e.g., removeNonInformative=1)")
-        self.lep_filter_extra = QLineEdit(); self.lep_filter_extra.setPlaceholderText("extra args for Filtering2")
-        self.lep_sep_extra = QLineEdit(); self.lep_sep_extra.setPlaceholderText("extra args for SeparateChromosomes2")
-        self.lep_order_extra = QLineEdit(); self.lep_order_extra.setPlaceholderText("extra args for OrderMarkers2")
+        self.lep_parent_extra = QLineEdit()
+        self.lep_parent_extra.setText("removeNonInformative=1")
+        self.lep_parent_extra.setPlaceholderText("extra args for ParentCall2 (e.g., removeNonInformative=1)")
+        
+        self.lep_filter_extra = QLineEdit()
+        self.lep_filter_extra.setText("dataTolerance=0.001")
+        self.lep_filter_extra.setPlaceholderText("extra args for Filtering2")
+        
+        self.lep_sep_extra = QLineEdit()
+        self.lep_sep_extra.setText("lodLimit=5 theta=0.05 distortionLod=1")
+        self.lep_sep_extra.setPlaceholderText("extra args for SeparateChromosomes2")
+        
+        self.lep_order_extra = QLineEdit()
+        self.lep_order_extra.setText("sexAveraged=1")
+        self.lep_order_extra.setPlaceholderText("extra args for OrderMarkers2")
 
         lep_basic = QFormLayout()
         lep_basic.addRow(QLabel("Lep-MAP3 bin"), jar_row)
@@ -21391,6 +21796,7 @@ class LinkageMapTab(QWidget):
         self.output_view.addItems([
             "map_markers.tsv",
             "map_lengths.tsv",
+            "marker_map.tsv",
             "marker_order.tsv",
             "ripple_results.tsv",
             "groups.tsv",
@@ -21455,6 +21861,7 @@ class LinkageMapTab(QWidget):
         self.output_view_draw.addItems([
             "map_markers.tsv",
             "map_lengths.tsv",
+            "marker_map.tsv",
             "marker_order.tsv",
             "ripple_results.tsv",
             "groups.tsv",
