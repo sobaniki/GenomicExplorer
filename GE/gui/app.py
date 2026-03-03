@@ -21711,16 +21711,38 @@ class LinkageMapTab(QWidget):
         b_jar.clicked.connect(lambda: self._pick_dir(self.lepmap3_jar))
         jar_row = self._hbox(self.lepmap3_jar, b_jar)
         
-        self.lepmap3_input = QLineEdit(); self.lepmap3_input.setPlaceholderText("Lep-MAP3 pedigree file")
+        self.lepmap3_input = QLineEdit(); self.lepmap3_input.setPlaceholderText("Optional manual pedigree file (auto if cross_ind + par_per_cross are provided)")
         b_in = QPushButton("Browse")
         b_in.setStyleSheet(GE_BTN_BROWSE_QSS)
         b_in.clicked.connect(lambda: self._pick_file(self.lepmap3_input, "*"))
         in_row = self._hbox(self.lepmap3_input, b_in)
-        
-        self.lepmap3_vcf = QLineEdit(); self.lepmap3_vcf.setPlaceholderText("VCF file")
+
+        # Optional: auto pedigree from NAM-style files
+        self.lepmap3_cross_ind = QLineEdit(); self.lepmap3_cross_ind.setPlaceholderText("cross_ind.tsv (id -> family/cross)")
+        b_cross = QPushButton("Browse")
+        b_cross.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_cross.clicked.connect(lambda: self._pick_file(self.lepmap3_cross_ind, "*"))
+        cross_row = self._hbox(self.lepmap3_cross_ind, b_cross)
+
+        self.lepmap3_par_per_cross = QLineEdit(); self.lepmap3_par_per_cross.setPlaceholderText("par_per_cross.tsv (family/cross -> parent1/parent2)")
+        b_par = QPushButton("Browse")
+        b_par.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_par.clicked.connect(lambda: self._pick_file(self.lepmap3_par_per_cross, "*"))
+        par_row = self._hbox(self.lepmap3_par_per_cross, b_par)
+
+        self.lepmap3_ril_model = QComboBox()
+        self.lepmap3_ril_model.addItems([
+            "Founder parents (P0×Pi) [recommended for NAM/RIL]",
+            "Dummy F1 self (F1×F1) [needs F1 in VCF or will fallback]",
+        ])
+        # Genotype file: VCF / PLINK / TSV-CSV (converted internally to VCF for Lep-MAP3)
+        self.lepmap3_vcf = QLineEdit(); self.lepmap3_vcf.setPlaceholderText("Genotype file (VCF/PLINK/TSV)")
         b_vcf = QPushButton("Browse")
         b_vcf.setStyleSheet(GE_BTN_BROWSE_QSS)
-        b_vcf.clicked.connect(lambda: self._pick_file(self.lepmap3_vcf, "*"))
+        b_vcf.clicked.connect(lambda: self._pick_file(
+            self.lepmap3_vcf,
+            "Genotype files (*.vcf *.vcf.gz *.bed *.bim *.fam *.pgen *.pvar *.psam *.tsv *.csv *.txt);;All files (*)"
+        ))
         vcf_row = self._hbox(self.lepmap3_vcf, b_vcf)
 
         self.lepmap3_java = QLineEdit(); self.lepmap3_java.setText("java")
@@ -21750,10 +21772,16 @@ class LinkageMapTab(QWidget):
         self.lep_order_extra.setText("sexAveraged=1")
         self.lep_order_extra.setPlaceholderText("extra args for OrderMarkers2")
 
+        # ParentCall2: half-sib families (shared parent across families), useful for NAM
+        self.lep_parent_halfsibs = QComboBox()
+        self.lep_parent_halfsibs.addItems(["AUTO", "0", "1"])
         lep_basic = QFormLayout()
         lep_basic.addRow(QLabel("Lep-MAP3 bin"), jar_row)
-        lep_basic.addRow(QLabel("Pedigree"), in_row)
-        lep_basic.addRow(QLabel("VCF"), vcf_row)
+        lep_basic.addRow(QLabel("Pedigree (optional)"), in_row)
+        lep_basic.addRow(QLabel("cross_ind.tsv"), cross_row)
+        lep_basic.addRow(QLabel("par_per_cross.tsv"), par_row)
+        lep_basic.addRow(QLabel("RIL model"), self.lepmap3_ril_model)
+        lep_basic.addRow(QLabel("Genotype file"), vcf_row)
         lep_basic.addRow(QLabel("java"), self.lepmap3_java)
         lep_basic.addRow(QLabel("java_mem_gb"), self.lepmap3_mem)
         lep_basic.addRow(QLabel("threads"), self.lepmap3_threads)
@@ -21763,10 +21791,11 @@ class LinkageMapTab(QWidget):
         lep_basic_box.setLayout(lep_basic)
 
         lep_adv = QFormLayout()
-        lep_adv.addRow(QLabel("run ParentCall2"), self.lep_do_parent)
-        lep_adv.addRow(QLabel("run Filtering2"), self.lep_do_filter)
-        lep_adv.addRow(QLabel("run SeparateChromosomes2"), self.lep_do_sep)
-        lep_adv.addRow(QLabel("run OrderMarkers2"), self.lep_do_order)
+        #lep_adv.addRow(QLabel("run ParentCall2"), self.lep_do_parent)
+        #lep_adv.addRow(QLabel("run Filtering2"), self.lep_do_filter)
+        #lep_adv.addRow(QLabel("run SeparateChromosomes2"), self.lep_do_sep)
+        #lep_adv.addRow(QLabel("run OrderMarkers2"), self.lep_do_order)
+        lep_adv.addRow(QLabel("halfSibs (ParentCall2)"), self.lep_parent_halfsibs)
         lep_adv.addRow(QLabel("ParentCall2 extra"), self.lep_parent_extra)
         lep_adv.addRow(QLabel("Filtering2 extra"), self.lep_filter_extra)
         lep_adv.addRow(QLabel("SeparateChromosomes2 extra"), self.lep_sep_extra)
@@ -22218,17 +22247,36 @@ class LinkageMapTab(QWidget):
             plugin_id = self.PLUGIN_LEPMAP3
             jar = self.lepmap3_jar.text().strip()
             inp = self.lepmap3_input.text().strip()
-            vcf = self.lepmap3_vcf.text().strip()
+            vcf = self.lepmap3_vcf.text().strip()  # genotype file (VCF/PLINK/TSV)
+            cross_ind = self.lepmap3_cross_ind.text().strip() if hasattr(self, "lepmap3_cross_ind") else ""
+            par_per_cross = self.lepmap3_par_per_cross.text().strip() if hasattr(self, "lepmap3_par_per_cross") else ""
+
             if not jar or not Path(jar).exists():
                 QMessageBox.warning(self, "Error", "Lep-MAP3 bin not set / not found")
                 return
-            if not inp or not Path(inp).exists():
-                QMessageBox.warning(self, "Error", "Lep-MAP3 input file not set / not found")
+            if not vcf or not Path(vcf).exists():
+                QMessageBox.warning(self, "Error", "Genotype file not set / not found")
                 return
+
+            auto_ped = bool(cross_ind and Path(cross_ind).exists() and par_per_cross and Path(par_per_cross).exists())
+            if not auto_ped:
+                if not inp or not Path(inp).exists():
+                    QMessageBox.warning(self, "Error", "Provide either (cross_ind.tsv + par_per_cross.tsv) or a manual pedigree file")
+                    return
+
+            ril_model_txt = self.lepmap3_ril_model.currentText() if hasattr(self, "lepmap3_ril_model") else ""
+            ril_model = "founder_parents" if ril_model_txt.startswith("Founder") else "dummy_f1_self"
+            halfsibs_mode = self.lep_parent_halfsibs.currentText() if hasattr(self, "lep_parent_halfsibs") else "AUTO"
 
             params = {
                 "lepmap3_jar": jar,
                 "input_path": inp,
+                "cross_ind_path": cross_ind,
+                "par_per_cross_path": par_per_cross,
+                "pedigree_model": ril_model,
+                "parentcall2_halfsibs": halfsibs_mode,
+                # Backward-compatible param name: runner infers by extension and converts to VCF if needed.
+                "genotype_path": vcf,
                 "vcf_path": vcf,
                 "java": self.lepmap3_java.text().strip() or "java",
                 "java_mem_gb": self.lepmap3_mem.text().strip(),
