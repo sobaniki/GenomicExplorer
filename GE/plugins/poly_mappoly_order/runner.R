@@ -60,7 +60,7 @@ g <- readRDS(group_rds)
 lg_ids <- NULL
 if (is.character(lg_id) && lg_id == "all") {
   # best-effort infer number of groups
-  ng <- g$n.groups %||% g$ngroups %||% NA_integer_
+  ng <- g$expected.groups %||% NA_integer_
   if (is.na(ng)) {
     lg_ids <- 1:12
     log("[WARN] cannot infer number of groups; defaulting lg_ids=1:12")
@@ -92,7 +92,7 @@ for (i in lg_ids) {
     s_ord <- mappoly::make_seq_mappoly(mds_o)
     go <- tryCatch(mappoly::get_genomic_order(s), error=function(e) NULL)
   }
-
+  
   results[[as.character(i)]] <- list(
     lg=i,
     seq_base=s,
@@ -108,7 +108,6 @@ for (i in lg_ids) {
   try(plot(m1, ord=s_ord, fact=5), silent=TRUE)
   dev.off()
 }
-
 order_rds <- file.path(out_dir, "mappoly_order.rds")
 saveRDS(results, order_rds)
 

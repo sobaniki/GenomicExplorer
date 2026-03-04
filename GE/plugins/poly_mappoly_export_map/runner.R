@@ -41,13 +41,16 @@ if (!requireNamespace("mappoly", quietly=TRUE)) {
 
 # NOTE: do not hard-code any upstream temp paths here; export should depend only on
 # the provided map_list_rds and parameters.
-dat2 <- readRDS("/tmp/poly_mappoly_import_47ysk20g/out/mappoly_data.rds")
+#dat2 <- readRDS("/tmp/poly_mappoly_import_47ysk20g/out/mappoly_data.rds")
+mappoly_data_rds <- as.character(params$mappoly_data_rds %||% "")
+dat2 <- readRDS(mappoly_data_rds)
+
 map_list_rds <- as.character(params$map_list_rds %||% "")
 use_updated <- isTRUE(params$use_updated %||% TRUE)
 export_csv <- isTRUE(params$export_csv %||% TRUE)
 export_qtlpoly <- isTRUE(params$export_qtlpoly %||% FALSE)
-step <- as.numeric(params$step %||% 1)
-error <- as.numeric(params$error %||% 0.05)
+step <- as.numeric(params$step %||% 0)
+error <- as.numeric(params$error %||% 0.01)
 
 if (!nzchar(map_list_rds) || !file.exists(map_list_rds)) {
   msg <- paste0("map_list_rds not found: ", map_list_rds)
@@ -76,7 +79,13 @@ if (isTRUE(export_qtlpoly)) {
   for (nm in names(maps)) {
     obj <- maps[[nm]]
     mp <- if (isTRUE(use_updated) && !is.null(obj$map_updated)) obj$map_updated else obj$map
-    g1 <- mappoly::calc_genoprob_error(mp, step = step, error = error)
+    g1 <- mappoly::calc_genoprob_error(mp, 
+                                       step = step,
+                                       phase.config = "best",
+                                       error = error,
+                                       th.prob = 0.95,
+                                       restricted = TRUE,
+                                       verbose = TRUE)
     qtl_list[[nm]] <- mappoly::export_qtlpoly(g1)
   }
   qtl_rds <- file.path(out_dir, "qtlpoly_export.rds")

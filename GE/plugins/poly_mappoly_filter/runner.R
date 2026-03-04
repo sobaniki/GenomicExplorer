@@ -71,11 +71,16 @@ if (is.null(seg_pval)) {
 }
 seg_pval <- as.numeric(seg_pval)
 log("filter_segregation chisq.pval.thres=", seg_pval)
-seq_filt <- mappoly::filter_segregation(dat2, chisq.pval.thres = seg_pval)
-
-# Build sequence
-seq_init <- mappoly::make_seq_mappoly(seq_filt,
-                                      arg = NULL,
+# seq_filt <- mappoly::filter_segregation(dat2, chisq.pval.thres = seg_pval)
+# 
+# # Build sequence
+# seq_init <- mappoly::make_seq_mappoly(seq_filt,
+#                                       arg = NULL,
+#                                       data.name = NULL,
+#                                       info.parent = "all",
+#                                       genomic.info = NULL)
+seq_init <- mappoly::make_seq_mappoly(dat2,
+                                      arg = "all",
                                       data.name = NULL,
                                       info.parent = "all",
                                       genomic.info = NULL)
@@ -93,9 +98,9 @@ if (isTRUE(elim_redundant)) {
 # Save outputs
 out_files <- list()
 
-filtered_data_rds <- file.path(out_dir, "mappoly_data_filtered.rds")
-saveRDS(seq_filt, filtered_data_rds)
-out_files$mappoly_data_filtered_rds <- basename(filtered_data_rds)
+# filtered_data_rds <- file.path(out_dir, "mappoly_data_filtered.rds")
+# saveRDS(seq_filt, filtered_data_rds)
+# out_files$mappoly_data_filtered_rds <- basename(filtered_data_rds)
 
 seq_init_rds <- file.path(out_dir, "mappoly_seq_init.rds")
 saveRDS(seq_init, seq_init_rds)

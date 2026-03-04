@@ -27954,7 +27954,7 @@ class PolyPrepareTab(QWidget):
         btn_t.clicked.connect(lambda: self._pick_file(self.total_count_tsv, "TSV (*.tsv *.txt);;All (*.*)"))
 
         self.orientation = QComboBox()
-        self.orientation.addItems(["markers_rows", "samples_rows"])
+        self.orientation.addItems(["samples_rows", "markers_rows"])
         self.write_matrix_tsv = QCheckBox("Write ref/total matrices as TSV (can be huge)")
         self.write_matrix_tsv.setChecked(False)
 
@@ -27979,13 +27979,13 @@ class PolyPrepareTab(QWidget):
         prep_form.addRow("ref_count.tsv", row)
         row = QHBoxLayout(); row.addWidget(self.total_count_tsv); row.addWidget(btn_t)
         prep_form.addRow("total_count.tsv", row)
-        #prep_form.addRow("Orientation", self.orientation)
+        prep_form.addRow("Orientation", self.orientation)
         #prep_form.addRow("", self.write_matrix_tsv)
 
         row = QHBoxLayout(); row.addWidget(self.counts_rds_in); row.addWidget(btn_cr)
         prep_form.addRow("counts.rds (cached)", row)
 
-        prep_btn = QPushButton("1) Prepare counts (PolyCounts)")
+        prep_btn = QPushButton("1) Prepare counts")
         prep_btn.setStyleSheet(GE_BTN_RUN_QSS)
         prep_btn.clicked.connect(lambda *args, **kwargs: self.run_prepare())
 
@@ -28238,7 +28238,7 @@ class PolyUpdogTab(QWidget):
 
         # output_folder (optional): results will be exported here (core layer copies out/*)
         self.output_dir = QLineEdit()
-        self.output_dir.setPlaceholderText("Select output folder (optional)")
+        self.output_dir.setPlaceholderText("Select output folder")
         b_out = QPushButton("Browse")
         b_out.setStyleSheet(GE_BTN_BROWSE_QSS)
         b_out.setToolTip("Select output folder")
@@ -28261,6 +28261,11 @@ class PolyUpdogTab(QWidget):
         btn = QPushButton("Browse")
         btn.setStyleSheet(GE_BTN_BROWSE_QSS)
         btn.clicked.connect(lambda: self._pick_file(self.counts_rds, "RDS (*.rds);;All (*.*)"))
+        
+        self.marker_file = QLineEdit()
+        btn_marker = QPushButton("Browse")
+        btn_marker.setStyleSheet(GE_BTN_BROWSE_QSS)
+        btn_marker.clicked.connect(lambda: self._pick_file(self.marker_file, "TSV/CSV (*.tsv *.txt *.csv *.rds);;All (*.*)"))
 
         self.method = QComboBox()
         self.method.addItems(["multidog", "flexdog"])
@@ -28274,9 +28279,9 @@ class PolyUpdogTab(QWidget):
 
         # Parents (for f1/s1 models). These should match sample IDs (column names) in counts_rds.
         self.parent1_id = QLineEdit()
-        self.parent1_id.setPlaceholderText("Parent 1 sample ID (column name in PolyCounts)")
+        self.parent1_id.setPlaceholderText("Parent 1 sample ID")
         self.parent2_id = QLineEdit()
-        self.parent2_id.setPlaceholderText("Parent 2 sample ID (optional; for F1 models)")
+        self.parent2_id.setPlaceholderText("Parent 2 sample ID (for F1 models)")
 
         self.progeny_ids = QLineEdit()
         self.progeny_ids.setPlaceholderText("Optional progeny IDs (comma-separated). Default: all non-parent samples")
@@ -28302,9 +28307,13 @@ class PolyUpdogTab(QWidget):
         form.addRow("output_folder", out_row)
         form.addRow("Ploidy", self.ploidy)
         row = QHBoxLayout(); row.addWidget(self.counts_rds); row.addWidget(btn)
-        form.addRow("counts_rds (PolyCounts)", row)
+        form.addRow("counts_rds", row)
+        
+        marker = QHBoxLayout(); marker.addWidget(self.marker_file); marker.addWidget(btn_marker)
+        form.addRow("marker file", marker)
+        
         #form.addRow("Method", self.method)
-        form.addRow("Model (prior)", self.model)
+        form.addRow("Model", self.model)
         form.addRow("ncores", self.ncores)
 
         # Parent controls (kept compact to avoid clutter)
@@ -28412,9 +28421,17 @@ class PolyUpdogTab(QWidget):
         params = {
             "ploidy": int(self.ploidy.value()),
             "counts_rds": self.counts_rds.text().strip(),
+            "marker_file": self.marker_file.text().strip(),
             "method": self.method.currentText().strip(),
             "ncores": int(self.ncores.value()),
             "extra_options": merged_opts,
+            "model": self.model.currentText().strip(),
+            "bias": float(self.bias.value()),
+            "seq": float(self.seq.value()),
+            "od": float(self.od.value()),
+            "update_bias": bool(self.update_bias.isChecked()),
+            "update_seq": bool(self.update_seq.isChecked()),
+            "update_od": bool(self.update_od.isChecked()),
         }
 
         out_root = (self.output_dir.text() if hasattr(self, 'output_dir') else '').strip()
@@ -28812,31 +28829,33 @@ class PolyMappolyWizardTab(QWidget):
         self.geno_rds = QLineEdit()
         btn_geno = QPushButton("Browse")
         btn_geno.setStyleSheet(GE_BTN_BROWSE_QSS)
-        btn_geno.clicked.connect(lambda: self._pick_file(self.geno_rds, "RDS (*.rds);;All (*.*)"))
+        btn_geno.clicked.connect(lambda: self._pick_file(self.geno_rds, "CSV/VCF/RDS (*.csv *.vcf *.vcf.gz *.rds);;All (*.*)"))
 
         self.ploidy = QSpinBox()
         self.ploidy.setRange(2, 16)
         self.ploidy.setValue(4)
         self.ploidy.setSingleStep(1)
         
-        self.parent1_id = QLineEdit(); self.parent1_id.setPlaceholderText("parent1 sample_id (optional if geno.rds has role)")
-        self.parent2_id = QLineEdit(); self.parent2_id.setPlaceholderText("parent2 sample_id (optional if geno.rds has role)")
-        self.use_prob = QCheckBox("Use genotype probabilities (recommended)")
-        self.use_prob.setChecked(True)
+        self.parent1_id = QLineEdit()
+        #self.parent1_id.setPlaceholderText("parent1 sample_id (optional if geno.rds has role)")
+        self.parent2_id = QLineEdit()
+        #self.parent2_id.setPlaceholderText("parent2 sample_id (optional if geno.rds has role)")
+        self.use_prob = QCheckBox("Use genotype probabilities")
+        self.use_prob.setChecked(False)
 
         import_form = QFormLayout()
         row = QHBoxLayout(); row.addWidget(self.geno_rds); row.addWidget(btn_geno)
-        import_form.addRow("geno_rds", row)
+        import_form.addRow("geno (csv/vcf)", row)
         import_form.addRow("Ploidy", self.ploidy)
         import_form.addRow("parent1_id", self.parent1_id)
         import_form.addRow("parent2_id", self.parent2_id)
         import_form.addRow("", self.use_prob)
 
-        btn_import = QPushButton("1) Import geno.rds → mappoly_data.rds")
+        btn_import = QPushButton("1) Import")
         btn_import.setStyleSheet(GE_BTN_RUN_QSS)
         btn_import.clicked.connect(lambda *args, **kwargs: self.run_import())
 
-        import_box = QGroupBox("1) Import (geno.rds → mappoly.data)")
+        import_box = QGroupBox("1) Import (to mappoly.data)")
         v = QVBoxLayout(); v.addLayout(import_form); v.addWidget(btn_import)
         import_box.setLayout(v)
 
@@ -28849,7 +28868,7 @@ class PolyMappolyWizardTab(QWidget):
         self.filter_marker_missing = QDoubleSpinBox(); self.filter_marker_missing.setRange(0, 1); self.filter_marker_missing.setValue(0.05); self.filter_marker_missing.setSingleStep(0.01)
         self.filter_ind_missing = QDoubleSpinBox(); self.filter_ind_missing.setRange(0, 1); self.filter_ind_missing.setValue(0.05); self.filter_ind_missing.setSingleStep(0.01)
 
-        self.elim_redundant = QCheckBox("Eliminate redundant markers (recommended)")
+        self.elim_redundant = QCheckBox("Eliminate redundant markers")
         self.elim_redundant.setChecked(True)
 
         self.seg_mode = QComboBox(); self.seg_mode.addItems(["bonferroni", "pval"])
@@ -28991,8 +29010,8 @@ class PolyMappolyWizardTab(QWidget):
         self.export_csv.setChecked(True)
         self.export_qtlpoly = QCheckBox("Export QTLpoly object (optional)")
         self.export_qtlpoly.setChecked(False)
-        self.qtl_step = QDoubleSpinBox(); self.qtl_step.setRange(0.1, 20); self.qtl_step.setValue(1.0); self.qtl_step.setDecimals(2)
-        self.qtl_error = QDoubleSpinBox(); self.qtl_error.setRange(0, 0.5); self.qtl_error.setValue(0.05); self.qtl_error.setDecimals(3)
+        self.qtl_step = QDoubleSpinBox(); self.qtl_step.setRange(0, 20); self.qtl_step.setValue(0); self.qtl_step.setDecimals(2)
+        self.qtl_error = QDoubleSpinBox(); self.qtl_error.setRange(0, 0.5); self.qtl_error.setValue(0.01); self.qtl_error.setDecimals(3)
 
         export_form = QFormLayout()
         row7 = QHBoxLayout(); row7.addWidget(self.map_list_rds); row7.addWidget(btn_map_list)

@@ -592,9 +592,9 @@ if (!exists("runMacs", where=asNamespace("AlphaSimR"), inherits=FALSE)) {
   if (!(is.null(mergepop))) {
     mergeG <- pullSnpGeno(mergepop)
     geno_merge <- mergeG
-    if (!(toupper(pop_type) %in% c("S1_INBRED", "S1_OUTBRED"))) {
-      geno_merge <- geno_merge[rownames(geno_merge) %in% c(pop0@mother, pop0@father, rownames(G)) , ]
-    }
+    #if (!(toupper(pop_type) %in% c("S1_INBRED", "S1_OUTBRED"))) {
+    #  geno_merge <- geno_merge[rownames(geno_merge) %in% c(pop0@mother, pop0@father, rownames(G)) , ]
+    #}
     pheno_merge <- mergepop@pheno
     qtl_merge <- pullQtlGeno(mergepop)
   }
@@ -727,6 +727,12 @@ if (!(is.null(geno_merge))) {
   merge_id[(length(merge_id) - n_ind + 1):length(merge_id)] <- sample_id
   geno_merge_dt <- cbind(data.table(sample_id=merge_id), geno_merge_dt)
   fwrite(geno_merge_dt, file.path(dataset_dir, "genotype", "geno_merge.tsv"), sep="\t", na="NA", quote = F)
+  
+  pheno_merge_dt <- data.frame(sample_id = merge_id, 
+                               pheno_merge)
+  fwrite(pheno_merge_dt, 
+         file.path(dataset_dir, "phenotype", "pheno_merge.tsv"), 
+         sep="\t", na="NA", quote = F)
 }
 
 #PLINK and VCF outputs
