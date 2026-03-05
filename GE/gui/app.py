@@ -3147,6 +3147,7 @@ def build_qtl_scan_figure(
         return None
 
     style = style or {}
+    y_label = str(style.get("y_label", "LOD"))
     font_family = str(style.get("font_family", "Arial"))
     font_size = int(style.get("font_size", 12))
     font_color = str(style.get("font_color", "#000000"))
@@ -3297,9 +3298,9 @@ def build_qtl_scan_figure(
             x=d["x"],
             y=d["lod"],
             mode="lines",
-            name="LOD",
+            name=y_label,
             line=dict(width=lod_line_width),
-            hovertemplate="chr=%{customdata[0]}<br>pos=%{customdata[1]:" + pos_fmt + "} " + pos_unit + "<br>LOD=%{y:.3f}<extra></extra>",
+            hovertemplate="chr=%{customdata[0]}<br>pos=%{customdata[1]:" + pos_fmt + "} " + pos_unit + f"<br>{y_label}=%{{y:.3f}}<extra></extra>",
             customdata=np.stack([d["chr"].values, d["pos"].values], axis=1),
         ),
         row=1,
@@ -3346,7 +3347,7 @@ def build_qtl_scan_figure(
         ticktext=tick_t,
         title_text="Chromosome",
     )
-    fig.update_yaxes(row=1, col=1, title_text="LOD")
+    fig.update_yaxes(row=1, col=1, title_text=y_label)
 
     # peaks markers (genome-wide)
     if peaks_df is not None and not peaks_df.empty:
@@ -3367,7 +3368,7 @@ def build_qtl_scan_figure(
                 mode="markers",
                 name="Peaks",
                 marker=dict(size=peak_marker_size),
-                hovertemplate="PEAK<br>chr=%{customdata[0]}<br>pos=%{customdata[1]:" + pos_fmt + "} " + pos_unit + "<br>LOD=%{y:.3f}<extra></extra>",
+                hovertemplate="PEAK<br>chr=%{customdata[0]}<br>pos=%{customdata[1]:" + pos_fmt + "} " + pos_unit + f"<br>{y_label}=%{{y:.3f}}<extra></extra>",
                 customdata=np.array(hcd),
             ),
             row=1,
@@ -3417,9 +3418,9 @@ def build_qtl_scan_figure(
                 y=sub["lod"],
                 mode="lines",
                 line=dict(width=lod_line_width),
-                name=f"LOD (chr {c0})",
+                name=f"{y_label} (chr {c0})",
                 showlegend=False,
-                hovertemplate="chr=%{customdata[0]}<br>pos=%{x:" + pos_fmt + "} " + pos_unit + "<br>LOD=%{y:.3f}<extra></extra>",
+                hovertemplate="chr=%{customdata[0]}<br>pos=%{x:" + pos_fmt + "} " + pos_unit + f"<br>{y_label}=%{{y:.3f}}<extra></extra>",
                 customdata=np.stack([sub["chr"].values], axis=1),
             ),
             row=2,
@@ -3442,17 +3443,17 @@ def build_qtl_scan_figure(
                 textposition="top center",
                 marker=dict(size=max(peak_marker_size, 10)),
                 showlegend=False,
-                hovertemplate="PEAK<br>chr=%{customdata[0]}<br>pos=%{x:" + pos_fmt + "} " + pos_unit + "<br>LOD=%{y:.3f}<extra></extra>",
+                hovertemplate="PEAK<br>chr=%{customdata[0]}<br>pos=%{x:" + pos_fmt + "} " + pos_unit + f"<br>{y_label}=%{{y:.3f}}<extra></extra>",
                 customdata=np.array([[c0]]),
             ),
             row=2,
             col=1,
         )
         fig.update_xaxes(row=2, col=1, title_text=f"Position ({pos_unit})")
-        fig.update_yaxes(row=2, col=1, title_text="LOD")
+        fig.update_yaxes(row=2, col=1, title_text=y_label)
     else:
         fig.update_xaxes(row=2, col=1, title_text=f"Position ({pos_unit})")
-        fig.update_yaxes(row=2, col=1, title_text="LOD")
+        fig.update_yaxes(row=2, col=1, title_text=y_label)
 
     fig.update_layout(
         title=title,
@@ -4580,6 +4581,7 @@ class ResultsPane(QWidget):
         self._qtl_out_dir: Path | None = None
         self._qtl_title: str = "QTL LOD profile"
         self._qtl_pos_unit: str = "cM"
+        self._qtl_y_label: str = "LOD"
         self._qtl_fig = None  # plotly figure
 
         self.gb_qtl_style = QGroupBox("QTL plot controls (Style / Export)")
@@ -11699,6 +11701,7 @@ class ResultsPane(QWidget):
         *,
         title: str,
         pos_unit: str = "cM",
+        y_label: str = "LOD",
     ):
         """Store context for QTL interactive plot rebuilds (called after a QTL run)."""
         self._qtl_lod_profile_tsv = Path(lod_profile_tsv)
@@ -11707,6 +11710,7 @@ class ResultsPane(QWidget):
         self._qtl_out_dir = Path(out_dir)
         self._qtl_title = str(title)
         self._qtl_pos_unit = str(pos_unit)
+        self._qtl_y_label = str(y_label)
 
         # enable QTL controls and disable GWAS controls (to avoid confusion)
         self._plot_mode = "qtl"
@@ -11726,6 +11730,7 @@ class ResultsPane(QWidget):
 
     def _collect_qtl_plot_settings(self) -> dict:
         return dict(
+            y_label=str(getattr(self, "_qtl_y_label", "LOD")),
             font_family=self.cmb_qtl_font.currentText(),
             font_size=int(self.sp_qtl_font_size.value()),
             font_color=self._qtl_font_color.name(),
@@ -22380,7 +22385,8 @@ class RNASeqTab(QWidget):
         btn_design.clicked.connect(lambda *args, **kwargs: self.pick_design())
         self.method = QComboBox()
         # Best-effort wrappers: some methods may require extra packages; runner will fall back or error.
-        self.method.addItems(["edgeR", "DESeq2", "limma", "NOISeq", "samr", "EBSeq", "baySeq"])
+        #self.method.addItems(["edgeR", "DESeq2", "limma", "NOISeq", "samr", "EBSeq", "baySeq"])
+        self.method.addItems(["edgeR", "DESeq2", "limma", "NOISeq", "EBSeq"])
 
         # output_folder (optional): results will be copied here via core export
         self.output_dir = QLineEdit()
@@ -23298,8 +23304,8 @@ class RNASeqClusterTab(QWidget):
         self.pca_method = QComboBox()
         self.pca_method.addItems(["prcomp", "irlba (fast, optional)"])
         self.n_pcs = QSpinBox()
-        self.n_pcs.setRange(2, 200)
-        self.n_pcs.setValue(50)
+        self.n_pcs.setRange(2, 10000)
+        self.n_pcs.setValue(1000)
 
         self.do_umap = QCheckBox("UMAP (uwot)")
         self.do_umap.setChecked(True)
@@ -29660,20 +29666,40 @@ class PolyQTLTab(QWidget):
         btn_map.setStyleSheet(GE_BTN_BROWSE_QSS)
         btn_map.clicked.connect(lambda: self._pick_file(self.map_markers, "Map/marker TSV (*.tsv *.txt *.csv);;All (*.*)"))
 
-        self.extra_json = QPlainTextEdit()
-        self.extra_json.setPlaceholderText(
-            "Additional JSON options (merged into params).\n"
-            "Example:\n"
-            "{\n"
-            "  \"step_cM\": 1,\n"
-            "  \"w_size_cM\": 15,\n"
-            "  \"threshold_mode\": \"pointwise_manual\",\n"
-            "  \"sig_fwd\": 0.01,\n"
-            "  \"sig_bwd\": 1e-4,\n"
-            "  \"d_sint\": 1.5,\n"
-            "  \"n_cores\": 4\n"
-            "}\n"
+        # ---- QTLpoly options (GUI widgets; no JSON) ----
+        self.step_cM = QDoubleSpinBox(); self.step_cM.setDecimals(3); self.step_cM.setRange(0.001, 1e6); self.step_cM.setSingleStep(0.1); self.step_cM.setValue(1.0)
+        self.w_size_cM = QSpinBox(); self.w_size_cM.setRange(1, 5000); self.w_size_cM.setValue(15)
+        self.d_sint = QDoubleSpinBox(); self.d_sint.setDecimals(3); self.d_sint.setRange(0.0, 100.0); self.d_sint.setSingleStep(0.1); self.d_sint.setValue(1.5)
+        self.n_cores = QSpinBox(); self.n_cores.setRange(1, 256); self.n_cores.setValue(1)
+
+        self.threshold_mode = QComboBox()
+        self.threshold_mode.addItems(["pointwise_manual", "resampling_pointwise", "resampling_genomewide"])
+        self.threshold_mode.setToolTip(
+            "pointwise_manual: use sig_fwd/sig_bwd directly\n"
+            "resampling_pointwise: derive pointwise thresholds from null simulations\n"
+            "resampling_genomewide: use score.null and genome-wide significance levels"
         )
+
+        self.sig_fwd = QDoubleSpinBox(); self.sig_fwd.setDecimals(8); self.sig_fwd.setRange(1e-12, 1.0); self.sig_fwd.setSingleStep(0.001); self.sig_fwd.setValue(0.01)
+        self.sig_bwd = QDoubleSpinBox(); self.sig_bwd.setDecimals(8); self.sig_bwd.setRange(1e-12, 1.0); self.sig_bwd.setSingleStep(0.0001); self.sig_bwd.setValue(0.0001)
+
+        self.alpha_fwd = QDoubleSpinBox(); self.alpha_fwd.setDecimals(3); self.alpha_fwd.setRange(0.0, 1.0); self.alpha_fwd.setSingleStep(0.01); self.alpha_fwd.setValue(0.2)
+        self.alpha_bwd = QDoubleSpinBox(); self.alpha_bwd.setDecimals(3); self.alpha_bwd.setRange(0.0, 1.0); self.alpha_bwd.setSingleStep(0.01); self.alpha_bwd.setValue(0.05)
+
+        self.n_sim = QSpinBox(); self.n_sim.setRange(10, 200000); self.n_sim.setValue(200)
+        self.seed = QSpinBox(); self.seed.setRange(1, 2_000_000_000); self.seed.setValue(1)
+
+        self.cb_plot_grid = QCheckBox("grid")
+        self.cb_plot_supint = QCheckBox("sup.int")
+        self.cb_fit_model = QCheckBox("fit_model")
+        self.cb_effects = QCheckBox("effects")
+        self.cb_effects.setEnabled(False)
+
+        self.id_col = QLineEdit("id")
+        self.id_col.setToolTip("Phenotype ID column name (optional; used only by some inputs)")
+
+        self.cb_fit_model.toggled.connect(lambda v: self.cb_effects.setEnabled(bool(v)))
+        self.threshold_mode.currentIndexChanged.connect(lambda *args, **kwargs: self._update_thr_mode_widgets())
 
         basic = QFormLayout()
         out_row = QHBoxLayout(); out_row.addWidget(self.output_dir); out_row.addWidget(b_out)
@@ -29687,12 +29713,41 @@ class PolyQTLTab(QWidget):
         row1 = QHBoxLayout(); row1.addWidget(self.map_markers); row1.addWidget(btn_map)
         basic.addRow("map (optional; cM↔bp)", row1)
 
-        adv = QFormLayout()
-        adv.addRow("extra_options (JSON)", self.extra_json)
-        adv_box = QGroupBox("Advanced (QTLpoly)")
+        # Advanced options (compact 3-per-row)
+        adv_box = QGroupBox("Options (QTLpoly)")
         adv_box.setCheckable(True)
-        adv_box.setChecked(False)
-        adv_box.setLayout(adv)
+        adv_box.setChecked(True)
+        adv_grid = QGridLayout()
+        adv_grid.setHorizontalSpacing(10)
+        adv_grid.setVerticalSpacing(6)
+
+        def _add_triple(r: int, a, b=None, c=None):
+            items = [x for x in [a, b, c] if x is not None]
+            for j, (lab, w) in enumerate(items):
+                adv_grid.addWidget(QLabel(lab), r, j * 2)
+                adv_grid.addWidget(w, r, j * 2 + 1)
+
+        rr = 0
+        _add_triple(rr, ("step (cM)", self.step_cM), ("window (cM)", self.w_size_cM), ("n_cores", self.n_cores)); rr += 1
+        _add_triple(rr, ("d_sint", self.d_sint), ("thr_mode", self.threshold_mode), ("ID col", self.id_col)); rr += 1
+        _add_triple(rr, ("sig_fwd", self.sig_fwd), ("sig_bwd", self.sig_bwd)); rr += 1
+        _add_triple(rr, ("alpha_fwd", self.alpha_fwd), ("alpha_bwd", self.alpha_bwd), ("n_sim", self.n_sim)); rr += 1
+        _add_triple(rr, ("seed", self.seed)); rr += 1
+
+        row_flags = QHBoxLayout()
+        row_flags.setContentsMargins(0, 0, 0, 0)
+        row_flags.addWidget(QLabel("Plots/Model"))
+        row_flags.addWidget(self.cb_plot_grid)
+        row_flags.addWidget(self.cb_plot_supint)
+        row_flags.addSpacing(10)
+        row_flags.addWidget(self.cb_fit_model)
+        row_flags.addWidget(self.cb_effects)
+        row_flags.addStretch(1)
+        w_flags = QWidget(); w_flags.setLayout(row_flags)
+        adv_grid.addWidget(w_flags, rr, 0, 1, 6); rr += 1
+
+        adv_box.setLayout(adv_grid)
+        self._update_thr_mode_widgets()
 
         run_btn = QPushButton("Run")
         run_btn.setStyleSheet(GE_BTN_RUN_QSS)
@@ -29717,6 +29772,18 @@ class PolyQTLTab(QWidget):
         root = QVBoxLayout()
         root.addWidget(scroll)
         self.setLayout(root)
+
+    def _update_thr_mode_widgets(self):
+        mode = (self.threshold_mode.currentText() or "").strip().lower()
+        is_manual = (mode == "pointwise_manual")
+        # manual p-thresholds
+        self.sig_fwd.setEnabled(is_manual)
+        self.sig_bwd.setEnabled(is_manual)
+        # resampling params
+        self.alpha_fwd.setEnabled(not is_manual)
+        self.alpha_bwd.setEnabled(not is_manual)
+        self.n_sim.setEnabled(not is_manual)
+        self.seed.setEnabled(not is_manual)
 
     def _pick_file(self, lineedit: QLineEdit, filt: str):
         fp, _ = QFileDialog.getOpenFileName(self, "Select file", "", filt)
@@ -29765,23 +29832,28 @@ class PolyQTLTab(QWidget):
             QMessageBox.warning(self, "Error", "trait column is required")
             return
 
-        extra = self.extra_json.toPlainText().strip()
-        extra_dict = {}
-        if extra:
-            try:
-                extra_dict = json.loads(extra)
-                if not isinstance(extra_dict, dict):
-                    raise ValueError("extra params must be a JSON object")
-            except Exception as e:
-                self.append_log(f"[poly_qtlpoly_scan] WARNING: invalid extra JSON ignored: {e}")
-                QMessageBox.warning(self, "Invalid JSON", f"extra params must be a JSON object.\nIgnored.\n\nError: {e}")
-                extra_dict = {}
         params = {
             "ploidy": int(self.ploidy.value()),
             "qtlpoly_export_rds": geno_prob,
             "pheno_tsv": pheno,
             "trait": trait,
             "map_markers_tsv": self.map_markers.text().strip(),
+            "step_cM": float(self.step_cM.value()),
+            "w_size_cM": int(self.w_size_cM.value()),
+            "d_sint": float(self.d_sint.value()),
+            "n_cores": int(self.n_cores.value()),
+            "threshold_mode": str(self.threshold_mode.currentText()),
+            "sig_fwd": float(self.sig_fwd.value()),
+            "sig_bwd": float(self.sig_bwd.value()),
+            "alpha_fwd": float(self.alpha_fwd.value()),
+            "alpha_bwd": float(self.alpha_bwd.value()),
+            "n_sim": int(self.n_sim.value()),
+            "seed": int(self.seed.value()),
+            "plot_grid": bool(self.cb_plot_grid.isChecked()),
+            "plot_supint": bool(self.cb_plot_supint.isChecked()),
+            "fit_model": bool(self.cb_fit_model.isChecked()),
+            "effects": bool(self.cb_effects.isChecked()),
+            "id_col": (self.id_col.text() or "id").strip(),
         }
 
         out_root = (self.output_dir.text() if hasattr(self, 'output_dir') else '').strip()
@@ -29793,8 +29865,6 @@ class PolyQTLTab(QWidget):
                 QMessageBox.warning(self, 'Error', f'Cannot create output_folder: {e}')
                 return
 
-        if extra_dict:
-            params.update(extra_dict)
         run_dir = Path(tempfile.mkdtemp(prefix="poly_qtlpoly_"))
         self.append_log(f"Running plugin={self.PLUGIN_ID}")
         self.append_log(f"work_dir={run_dir}")
@@ -29808,8 +29878,25 @@ class PolyQTLTab(QWidget):
         tsv = out_dir / "peaks.tsv"
         if tsv.exists():
             self.results.load_table(tsv)
+        # Plotly (reuse QTL tab's interactive panel) if we have profile points and Plotly is available
+        lod_profile = out_dir / "lod_profile.tsv"
+        thr = out_dir / "thresholds.tsv"
         png = out_dir / "lod_plot.png"
-        if png.exists():
+        try:
+            go, pio, _q = _try_import_plotly()
+        except Exception:
+            go = pio = None
+        if (go is not None) and (pio is not None) and lod_profile.exists() and lod_profile.stat().st_size > 20:
+            self.results.set_qtl_plotly_context(
+                lod_profile_tsv=lod_profile,
+                peaks_tsv=tsv if tsv.exists() else None,
+                thresholds_tsv=thr if thr.exists() else None,
+                out_dir=out_dir,
+                title=f"QTLpoly profile: {trait}",
+                pos_unit="cM",
+                y_label="-log10(p)",
+            )
+        elif png.exists():
             self.results.set_plot(png)
 
 

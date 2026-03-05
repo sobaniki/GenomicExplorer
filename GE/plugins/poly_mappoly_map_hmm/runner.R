@@ -74,7 +74,18 @@ for (nm in names(ord)) {
   log("HMM LG", lg, ": markers=", length(s$seq.num %||% integer()))
 
   # detailed pairwise for this LG
-  tpt1 <- mappoly::est_pairwise_rf(input.seq = s, ncpus = ncpus)
+  tpt1 <- mappoly::est_pairwise_rf(input.seq = s,
+                                   count.cache = NULL,
+                                   count.matrix = NULL,
+                                   ncpus = ncpus,
+                                   mrk.pairs = NULL,
+                                   n.batches = 1L,
+                                   est.type = "disc",
+                                   verbose = TRUE,
+                                   memory.warning = TRUE,
+                                   parallelization.type = "PSOCK",
+                                   tol = .Machine$double.eps ^ 0.25,
+                                   ll = FALSE)
 
   mp <- mappoly::est_rf_hmm_sequential(
     input.seq = s,
@@ -88,12 +99,20 @@ for (nm in names(ord)) {
     phase.number.limit = phase_number_limit,
     reestimate.single.ph.configuration = TRUE,
     tol = tol,
-    tol.final = tol_final
+    tol.final = tol_final,
+    verbose = TRUE,
+    detailed.verbose = FALSE,
+    high.prec = FALSE
   )
 
   mp_up <- NULL
   if (isTRUE(update_global_error)) {
-    mp_up <- mappoly::est_full_hmm_with_global_error(input.map = mp, error = global_error, verbose = TRUE)
+    mp_up <- mappoly::est_full_hmm_with_global_error(input.map = mp, 
+                                                     error = global_error,
+                                                     tol = 0.001,
+                                                     restricted = TRUE,
+                                                     th.prob = 0.95,
+                                                     verbose = TRUE)
   }
 
   maps[[nm]] <- list(map=mp, map_updated=mp_up, twopt=tpt1)
