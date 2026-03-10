@@ -5,3 +5,5 @@ GE/*/__pycache__/
 *.txt
 *.pdf
 *.pyc
+*/__pycache__/
+GE/plugins/*/

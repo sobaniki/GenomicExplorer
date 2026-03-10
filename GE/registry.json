@@ -369,6 +369,30 @@
       }
     },
     {
+      "id": "prep_split_merge_extract",
+      "path": "./plugins/prep_split_merge_extract",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_split_groups",
+      "path": "./plugins/prep_split_groups",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_merge_files",
+      "path": "./plugins/prep_merge_files",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
       "id": "prep_tsv_to_vcf",
       "path": "./plugins/prep_tsv_to_vcf",
       "env": {

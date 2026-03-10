@@ -10,6 +10,7 @@ dependencies:
   # -------------------------
   - python=3.11
   - pip
+  - openpyxl
   - pyside6            # GUI本体 :contentReference[oaicite:4]{index=4}
   - numpy
   - pandas
@@ -19,6 +20,7 @@ dependencies:
   - plotly             # :contentReference[oaicite:5]{index=5}
   - python-kaleido     # plotly画像/PDF出力 :contentReference[oaicite:6]{index=6}
   - plink2
+  - bcftools
 
   # -------------------------
   # External tools used by some Python runners

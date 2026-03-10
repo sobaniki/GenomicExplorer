@@ -60,6 +60,8 @@ from PySide6.QtWidgets import (
     QToolButton,
     QFrame,
     QHeaderView,
+    QListWidget,
+    QAbstractItemView,
 )
 
 
@@ -16164,6 +16166,7 @@ class PreprocessTab(QWidget):
 
     PLUGIN_PLINK_TO_TSV = "prep_plink_to_tsv"
     PLUGIN_VCF_TO_TSV = "prep_vcf_to_tsv"
+    PLUGIN_VCF_TO_PLINK = "prep_vcf_to_plink"
     PLUGIN_RQTL_TO_TSV = "prep_rqtl_to_tsv"
     PLUGIN_CROSS2_TO_TSV = "prep_cross2_to_tsv"
 
@@ -16173,6 +16176,10 @@ class PreprocessTab(QWidget):
     PLUGIN_TSV_TO_CROSS2 = "prep_tsv_to_cross2"
 
     PLUGIN_QC_FILTER_PLINK2 = "qc_filter_plink2"
+
+    PLUGIN_SPLIT_MERGE_EXTRACT = "prep_split_merge_extract"
+    PLUGIN_SPLIT_GROUPS = "prep_split_groups"
+    PLUGIN_MERGE_FILES = "prep_merge_files"
     
     PLUGIN_IMPUTE = "impute_genotypes"
     PLUGIN_IMPUTE_PHENO = "impute_phenotypes"
@@ -16213,6 +16220,38 @@ class PreprocessTab(QWidget):
         self.fc_cross_type.addItems(["f2", "bc", "riself", "risib", "dh"])
         self.fc_cross_type.setCurrentText("f2")
 
+        # Output format selection (default: all checked)
+        self.fc_out_tsv = QCheckBox("TSV"); self.fc_out_tsv.setChecked(True)
+        self.fc_out_vcf = QCheckBox("VCF"); self.fc_out_vcf.setChecked(True)
+        self.fc_out_plink = QCheckBox("PLINK"); self.fc_out_plink.setChecked(True)
+        self.fc_out_rqtl = QCheckBox("RQTL"); self.fc_out_rqtl.setChecked(True)
+        self.fc_out_rqtl2 = QCheckBox("RQTL2"); self.fc_out_rqtl2.setChecked(True)
+
+        self.fc_out_cbs = {
+            "TSV": self.fc_out_tsv,
+            "VCF": self.fc_out_vcf,
+            "PLINK": self.fc_out_plink,
+            "RQTL": self.fc_out_rqtl,
+            "RQTL2": self.fc_out_rqtl2,
+        }
+
+        self.fc_out_widget = QWidget()
+        _g = QGridLayout()
+        _g.setContentsMargins(0, 0, 0, 0)
+        _g.setHorizontalSpacing(12)
+        _g.setVerticalSpacing(6)
+        _g.addWidget(self.fc_out_tsv, 0, 0)
+        _g.addWidget(self.fc_out_vcf, 0, 1)
+        _g.addWidget(self.fc_out_plink, 0, 2)
+        _g.addWidget(self.fc_out_rqtl, 1, 0)
+        _g.addWidget(self.fc_out_rqtl2, 1, 1)
+        _g.setColumnStretch(3, 1)
+        self.fc_out_widget.setLayout(_g)
+
+        for _cb in self.fc_out_cbs.values():
+            _cb.stateChanged.connect(lambda *_a, **_k: self._refresh_fc_output_ui())
+
+
         b_g = QPushButton("Browse")
         b_g.setStyleSheet(GE_BTN_BROWSE_QSS)
         b_g.clicked.connect(self.pick_fc_genotype_file)
@@ -16236,6 +16275,7 @@ class PreprocessTab(QWidget):
         form = QFormLayout()
         form.addRow("output_folder", self._hbox(self.fc_output_folder, b_o))
         form.addRow("Input format", self.mode)
+        form.addRow("Output format", self.fc_out_widget)
         form.addRow("Genotype file", self._hbox(self.fc_genotype_file, b_g))
         form.addRow("Marker map file (TSV)", self._hbox(self.fc_marker_map_file, b_m))
         form.addRow("Phenotype file (opt)", self._hbox(self.fc_phenotype_file, b_p))
@@ -16276,8 +16316,6 @@ class PreprocessTab(QWidget):
         self.flt_seg_p = QDoubleSpinBox(); self.flt_seg_p.setRange(0.0, 1.0); self.flt_seg_p.setDecimals(6); self.flt_seg_p.setSingleStep(0.001); self.flt_seg_p.setValue(0.001)
         self.flt_het_max = QDoubleSpinBox(); self.flt_het_max.setRange(0.0, 1.0); self.flt_het_max.setDecimals(3); self.flt_het_max.setSingleStep(0.01); self.flt_het_max.setValue(0.20)
 
-        self.flt_plink2_bin = QLineEdit(); self.flt_plink2_bin.setPlaceholderText("optional: plink2 binary (default: plink2)")
-
         b_fg = QPushButton("Browse"); b_fg.setStyleSheet(GE_BTN_BROWSE_QSS); b_fg.clicked.connect(self.pick_flt_genotype_file)
         b_fm = QPushButton("Browse"); b_fm.setStyleSheet(GE_BTN_BROWSE_QSS); b_fm.clicked.connect(self.pick_flt_marker_map_file)
         b_fp = QPushButton("Browse"); b_fp.setStyleSheet(GE_BTN_BROWSE_QSS); b_fp.clicked.connect(self.pick_flt_phenotype_file)
@@ -16298,25 +16336,31 @@ class PreprocessTab(QWidget):
         flt_form.addRow("Marker map file (TSV)", self._hbox(self.flt_marker_map_file, b_fm))
         flt_form.addRow("Phenotype file (opt)", self._hbox(self.flt_phenotype_file, b_fp))
         flt_form.addRow("Prefix (opt)", self.flt_prefix)
-        flt_form.addRow("max_missing_geno (samples)", self.flt_max_missing_geno)
-        flt_form.addRow("max_missing_pheno (samples)", self.flt_max_missing_pheno)
-        flt_form.addRow("min_MAF (markers)", self.flt_min_maf)
-        flt_form.addRow("min_call_rate (markers)", self.flt_min_callrate)
+        flt_form.addRow("QC thresholds", make_pairs_grid([
+            ("max_missing_geno", self.flt_max_missing_geno),
+            ("max_missing_pheno", self.flt_max_missing_pheno),
+            ("min_MAF", self.flt_min_maf),
+            ("min_call_rate", self.flt_min_callrate),
+        ], per_row=2))
 
         ld_box = QGroupBox("LD pruning")
         ld_f = QFormLayout()
-        ld_f.addRow("", self.flt_ld_prune)
-        ld_f.addRow("window (variants)", self.flt_ld_window)
-        ld_f.addRow("step (variants)", self.flt_ld_step)
-        ld_f.addRow("r2 threshold", self.flt_ld_r2)
+        ld_f.addRow(self.flt_ld_prune)
+        ld_f.addRow("Parameters", make_pairs_grid([
+            ("window", self.flt_ld_window),
+            ("step", self.flt_ld_step),
+            ("r2", self.flt_ld_r2),
+        ], per_row=3))
         ld_box.setLayout(ld_f)
 
         sd_box = QGroupBox("Segregation distortion")
         sd_f = QFormLayout()
-        sd_f.addRow("", self.flt_segdist)
-        sd_f.addRow("cross_type", self.flt_cross_type)
-        sd_f.addRow("keep if p >=", self.flt_seg_p)
-        sd_f.addRow("max_heterozygosity", self.flt_het_max)
+        sd_f.addRow(self.flt_segdist)
+        sd_f.addRow("Parameters", make_pairs_grid([
+            ("cross_type", self.flt_cross_type),
+            ("keep if p >=", self.flt_seg_p),
+            ("max_heterozygosity", self.flt_het_max),
+        ], per_row=3))
         sd_box.setLayout(sd_f)
 
         flt_wrap = QGroupBox("Filtering (QC)")
@@ -16324,8 +16368,6 @@ class PreprocessTab(QWidget):
         flt_l.addLayout(flt_form)
         flt_l.addWidget(ld_box)
         flt_l.addWidget(sd_box)
-        flt_l.addWidget(QLabel("plink2_bin (optional)"))
-        flt_l.addWidget(self.flt_plink2_bin)
         flt_l.addWidget(self.run_flt_btn)
         flt_wrap.setLayout(flt_l)
         self.filter_box = flt_wrap
@@ -16787,11 +16829,374 @@ class PreprocessTab(QWidget):
         pp_l.setContentsMargins(0, 0, 0, 0)
         pp_l.setSpacing(8)
         pp_l.addWidget(box)
-        pp_l.addWidget(self.filter_box)
         #pp_l.addWidget(cross_section)
         preprocess_page.setLayout(pp_l)
 
+        qc_page = QWidget()
+        qc_l = QVBoxLayout()
+        qc_l.setContentsMargins(0, 0, 0, 0)
+        qc_l.setSpacing(8)
+        qc_l.addWidget(self.filter_box)
+        qc_page.setLayout(qc_l)
+
+        # --- Split/Merge/Extract: align IDs (genotype/phenotype) and optionally extract matching samples ---
+        sme_page = QWidget()
+        sme_lay = QVBoxLayout()
+        sme_lay.setContentsMargins(0, 0, 0, 0)
+        sme_lay.setSpacing(8)
+
+        # Inputs
+        self.sme_output_folder = QLineEdit(); self.sme_output_folder.setPlaceholderText("Select output folder")
+        self.sme_prefix = QLineEdit(); self.sme_prefix.setPlaceholderText("optional: auto-generated if empty")
+
+        self.sme_pheno_path = QLineEdit(); self.sme_pheno_path.setPlaceholderText("phenotype.xlsx / phenotype.tsv / phenotype.csv")
+        self.sme_pheno_sheet = QLineEdit(); self.sme_pheno_sheet.setPlaceholderText("optional: sheet name (xlsx only; empty=first)")
+        self.sme_pheno_id_col = QLineEdit("Family_Inbred_Name"); self.sme_pheno_id_col.setPlaceholderText("phenotype ID column (default: first column)")
+
+        self.sme_ids_tsv = QLineEdit(); self.sme_ids_tsv.setPlaceholderText("genotype sample-id table (TSV)")
+        self.sme_geno_id_col = QLineEdit("id"); self.sme_geno_id_col.setPlaceholderText("genotype ID column in id table")
+        self.sme_geno_fid_col = QLineEdit(""); self.sme_geno_fid_col.setPlaceholderText("optional: FID column for PLINK keep (default=0)")
+
+        b_sme_out = QPushButton("Browse"); b_sme_out.setStyleSheet(GE_BTN_BROWSE_QSS); b_sme_out.clicked.connect(self.pick_sme_output_folder)
+        b_sme_ph  = QPushButton("Browse"); b_sme_ph.setStyleSheet(GE_BTN_BROWSE_QSS); b_sme_ph.clicked.connect(self.pick_sme_pheno_file)
+        b_sme_ids = QPushButton("Browse"); b_sme_ids.setStyleSheet(GE_BTN_BROWSE_QSS); b_sme_ids.clicked.connect(self.pick_sme_ids_tsv)
+
+        in_form = QFormLayout()
+        in_form.addRow("output_folder", self._hbox(self.sme_output_folder, b_sme_out))
+        in_form.addRow("prefix (opt)", self.sme_prefix)
+        in_form.addRow("phenotype", self._hbox(self.sme_pheno_path, b_sme_ph))
+
+        # Compact options (2-3 columns/row). Keep file/folder rows unchanged.
+        ph_opts = QWidget(); ph_h = QHBoxLayout(); ph_h.setContentsMargins(0,0,0,0)
+        ph_h.addWidget(QLabel("sheet")); ph_h.addWidget(self.sme_pheno_sheet)
+        ph_h.addSpacing(10)
+        ph_h.addWidget(QLabel("ID")); ph_h.addWidget(self.sme_pheno_id_col)
+        ph_opts.setLayout(ph_h)
+        in_form.addRow("", ph_opts)
+
+        in_form.addRow("genotype IDs TSV", self._hbox(self.sme_ids_tsv, b_sme_ids))
+
+        geno_opts = QWidget(); g_h = QHBoxLayout(); g_h.setContentsMargins(0,0,0,0)
+        g_h.addWidget(QLabel("id")); g_h.addWidget(self.sme_geno_id_col)
+        g_h.addSpacing(10)
+        g_h.addWidget(QLabel("fid")); g_h.addWidget(self.sme_geno_fid_col)
+        geno_opts.setLayout(g_h)
+        in_form.addRow("", geno_opts)
+
+        gb_in = QGroupBox("Inputs")
+        gb_in.setLayout(in_form)
+        sme_lay.addWidget(gb_in)
+
+        # Matching rules
+        self.sme_geno_transform = QComboBox(); self.sme_geno_transform.addItems(["Before ':' (recommended)", "None", "After ':'", "Regex (group1)"])
+        self.sme_pheno_transform = QComboBox(); self.sme_pheno_transform.addItems(["None", "Before ':'", "After ':'", "Regex (group1)"])
+        self.sme_delim = QLineEdit(":"); self.sme_delim.setMaximumWidth(80)
+        self.sme_regex = QLineEdit(); self.sme_regex.setPlaceholderText("optional: regex; use ( ) for group1 or (?P<id> )")
+
+        self.sme_strip = QCheckBox("strip"); self.sme_strip.setChecked(True)
+        self.sme_collapse_spaces = QCheckBox("collapse spaces"); self.sme_collapse_spaces.setChecked(True)
+        self.sme_remove_parentheses = QCheckBox("remove (...) "); self.sme_remove_parentheses.setChecked(False)
+        self.sme_case = QComboBox(); self.sme_case.addItems(["keep", "lower", "upper"]) 
+
+        self.sme_remove_chars_regex = QLineEdit(); self.sme_remove_chars_regex.setPlaceholderText("optional: regex to remove chars")
+
+        self.sme_alias_tsv = QLineEdit(); self.sme_alias_tsv.setPlaceholderText("optional: alias.tsv (source\ttarget)")
+        b_sme_alias = QPushButton("Browse"); b_sme_alias.setStyleSheet(GE_BTN_BROWSE_QSS); b_sme_alias.clicked.connect(self.pick_sme_alias_tsv)
+
+        self.sme_filter_col = QLineEdit(); self.sme_filter_col.setPlaceholderText("optional: filter column (e.g. Panel)")
+        self.sme_filter_values = QLineEdit(); self.sme_filter_values.setPlaceholderText("optional: values (comma-separated; e.g. NAM)")
+
+        # Panel-aware phenotype ID (e.g., NAM uses Z_Num instead of Family_Inbred_Name)
+        self.sme_panel_aware = QCheckBox("Aware ID")
+        self.sme_panel_aware.setChecked(False)
+        self.sme_panel_col = QLineEdit("Panel"); self.sme_panel_col.setPlaceholderText("panel column")
+        self.sme_panel_values = QLineEdit("NAM"); self.sme_panel_values.setPlaceholderText("values (comma-separated)")
+        self.sme_panel_id_col = QLineEdit("Z_Num"); self.sme_panel_id_col.setPlaceholderText("ID col for specified panel")
+
+        self.sme_keep_geno = QComboBox(); self.sme_keep_geno.addItems(["first", "keep_all"]) 
+        self.sme_reduce_pheno = QComboBox(); self.sme_reduce_pheno.addItems(["mean_numeric", "first", "keep_all"]) 
+
+        rule_form = QFormLayout()
+
+        tr = QWidget(); trh = QHBoxLayout(); trh.setContentsMargins(0,0,0,0)
+        trh.addWidget(QLabel("geno")); trh.addWidget(self.sme_geno_transform)
+        trh.addSpacing(8)
+        trh.addWidget(QLabel("pheno")); trh.addWidget(self.sme_pheno_transform)
+        trh.addSpacing(8)
+        trh.addWidget(QLabel("delim")); trh.addWidget(self.sme_delim)
+        tr.setLayout(trh)
+        rule_form.addRow("key transforms", tr)
+        rule_form.addRow("regex (opt)", self.sme_regex)
+
+        nr = QWidget(); nrh = QHBoxLayout(); nrh.setContentsMargins(0,0,0,0)
+        nrh.addWidget(self.sme_strip); nrh.addWidget(self.sme_collapse_spaces); nrh.addWidget(self.sme_remove_parentheses)
+        nrh.addStretch(1)
+        nrh.addWidget(QLabel("case")); nrh.addWidget(self.sme_case)
+        nr.setLayout(nrh)
+        rule_form.addRow("normalize", nr)
+
+        rule_form.addRow("remove chars (opt)", self.sme_remove_chars_regex)
+        rule_form.addRow("alias table (opt)", self._hbox(self.sme_alias_tsv, b_sme_alias))
+        # Compact: filter col + values in one row
+        flt = QWidget(); flth = QHBoxLayout(); flth.setContentsMargins(0,0,0,0)
+        flth.addWidget(QLabel("col")); flth.addWidget(self.sme_filter_col)
+        flth.addSpacing(10)
+        flth.addWidget(QLabel("values")); flth.addWidget(self.sme_filter_values)
+        flt.setLayout(flth)
+        rule_form.addRow("pheno filter (opt)", flt)
+
+        pa = QWidget(); pah = QHBoxLayout(); pah.setContentsMargins(0,0,0,0)
+        pah.addWidget(self.sme_panel_aware)
+        pah.addStretch(1)
+        pah.addWidget(QLabel("col")); pah.addWidget(self.sme_panel_col)
+        pah.addSpacing(8)
+        pah.addWidget(QLabel("values")); pah.addWidget(self.sme_panel_values)
+        pah.addSpacing(8)
+        pah.addWidget(QLabel("id_col")); pah.addWidget(self.sme_panel_id_col)
+        pa.setLayout(pah)
+        rule_form.addRow("Aware ID (opt)", pa)
+
+        dr = QWidget(); drh = QHBoxLayout(); drh.setContentsMargins(0,0,0,0)
+        drh.addWidget(QLabel("geno duplicates")); drh.addWidget(self.sme_keep_geno)
+        drh.addSpacing(12)
+        drh.addWidget(QLabel("pheno reduce")); drh.addWidget(self.sme_reduce_pheno)
+        dr.setLayout(drh)
+        rule_form.addRow("duplicates", dr)
+
+        gb_rule = QGroupBox("Match")
+        gb_rule.setLayout(rule_form)
+        sme_lay.addWidget(gb_rule)
+        # Extract genotype (optional; default engine: PLINK2)
+        self.sme_do_extract_geno = QCheckBox("Extract genotype file (opt)")
+        self.sme_do_extract_geno.setChecked(False)
+        self.sme_geno_path = QLineEdit(); self.sme_geno_path.setPlaceholderText("Matched genotype file (.vcf/.vcf.gz/.bcf OR .bed OR PLINK prefix)")
+        b_sme_geno = QPushButton("Browse"); b_sme_geno.setStyleSheet(GE_BTN_BROWSE_QSS); b_sme_geno.clicked.connect(self.pick_sme_geno_file)
+        self.sme_geno_out_prefix = QLineEdit("genotype_subset"); self.sme_geno_out_prefix.setPlaceholderText("Output prefix (basename)")
+
+        ex_form = QFormLayout()
+        ex_form.addRow(self.sme_do_extract_geno)
+        ex_form.addRow("Genotype file", self._hbox(self.sme_geno_path, b_sme_geno))
+        ex_form.addRow("Output prefix", self.sme_geno_out_prefix)
+
+        gb_ex = QGroupBox("Extract genotype")
+        gb_ex.setLayout(ex_form)
+        sme_lay.addWidget(gb_ex)
+
+        def _refresh_sme_extract_ui(*args, **kwargs):
+            en = bool(self.sme_do_extract_geno.isChecked())
+            self.sme_geno_path.setEnabled(en)
+            self.sme_geno_out_prefix.setEnabled(en)
+            b_sme_geno.setEnabled(en)
+
+            # If we extract genotype directly, the external "Genotype IDs Table" becomes unnecessary and can be confusing.
+            # Disable it (and related id_col/fid_col inputs). If already filled, it will be ignored at run time.
+            ids_en = not en
+            self.sme_ids_tsv.setEnabled(ids_en)
+            b_sme_ids.setEnabled(ids_en)
+            self.sme_geno_id_col.setEnabled(ids_en)
+            self.sme_geno_fid_col.setEnabled(ids_en)
+        self.sme_do_extract_geno.stateChanged.connect(_refresh_sme_extract_ui)
+        _refresh_sme_extract_ui()
+        # Run
+
+        btn_sme_run = QPushButton("Run")
+        btn_sme_run.setStyleSheet(GE_BTN_RUN_QSS)
+        btn_sme_run.clicked.connect(lambda *args, **kwargs: self.run_split_merge_extract())
+
+        out_box = QGroupBox("Run")
+        out_l = QVBoxLayout()
+        #out_l.addWidget(QLabel("Outputs: match_summary.tsv, matched/unmatched lists, phenotype.tsv, selected_samples.txt"))
+        out_l.addWidget(btn_sme_run)
+        out_box.setLayout(out_l)
+        sme_lay.addWidget(out_box)
+
+        sme_page.setLayout(sme_lay)
+
         tabs.addTab(_wrap_in_scroll("File converter", preprocess_page), "File converter")
+        tabs.addTab(_wrap_in_scroll("QC", qc_page), "QC")
+        tabs.addTab(_wrap_in_scroll("Extract", sme_page), "Extract")
+
+        # --- Merge: merge multiple (already-matched) phenotype/genotype datasets ---
+        merge_page = QWidget()
+        merge_lay = QVBoxLayout()
+        merge_lay.setContentsMargins(0, 0, 0, 0)
+        merge_lay.setSpacing(8)
+
+        self.mg_output_folder = QLineEdit(); self.mg_output_folder.setPlaceholderText("Select output folder")
+        self.mg_prefix = QLineEdit(); self.mg_prefix.setPlaceholderText("optional: auto-generated if empty")
+        b_mg_out = QPushButton("Browse"); b_mg_out.setStyleSheet(GE_BTN_BROWSE_QSS); b_mg_out.clicked.connect(self.pick_mg_output_folder)
+
+        form_mg = QFormLayout()
+        form_mg.addRow("output_folder", self._hbox(self.mg_output_folder, b_mg_out))
+        form_mg.addRow("prefix (opt)", self.mg_prefix)
+        gb_mg_base = QGroupBox("Base")
+        gb_mg_base.setLayout(form_mg)
+        merge_lay.addWidget(gb_mg_base)
+
+        # Phenotype merge
+        self.mg_ph_list = QListWidget()
+        self.mg_ph_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.mg_ph_sheet = QLineEdit(); self.mg_ph_sheet.setPlaceholderText("optional: sheet name for xlsx (empty=first)")
+        self.mg_ph_id_col = QLineEdit("id"); self.mg_ph_id_col.setPlaceholderText("sample ID column (default: id / first column)")
+
+        self.mg_ph_merge_mode = QComboBox(); self.mg_ph_merge_mode.addItems(["Auto", "Join traits (columns)", "Append rows"])
+        self.mg_ph_join = QComboBox(); self.mg_ph_join.addItems(["outer", "inner", "left"])
+        self.mg_ph_dup_policy = QComboBox(); self.mg_ph_dup_policy.addItems(["mean_numeric", "first", "keep_all"])
+        self.mg_trait_collision = QComboBox(); self.mg_trait_collision.addItems(["prefix", "suffix", "error"])
+
+        b_mg_ph_add = QPushButton("Add"); b_mg_ph_add.setStyleSheet(GE_BTN_BROWSE_QSS); b_mg_ph_add.clicked.connect(self.add_mg_pheno_files)
+        b_mg_ph_rm = QPushButton("Remove"); b_mg_ph_rm.clicked.connect(lambda *a, **k: self.remove_selected_from_list(self.mg_ph_list))
+        b_mg_ph_cl = QPushButton("Clear"); b_mg_ph_cl.clicked.connect(lambda *a, **k: self.mg_ph_list.clear())
+
+        ph_btns = QWidget(); ph_b = QHBoxLayout(); ph_b.setContentsMargins(0,0,0,0)
+        ph_b.addWidget(b_mg_ph_add); ph_b.addWidget(b_mg_ph_rm); ph_b.addWidget(b_mg_ph_cl)
+        #ph_b.addStretch(1)
+        ph_btns.setLayout(ph_b)
+
+        ph_form = QFormLayout()
+        ph_form.addRow("pheno files", self.mg_ph_list)
+        ph_form.addRow(ph_btns)
+        # Compact options rows (2-3 columns/row). File/list rows unchanged.
+        ph_opt1 = QWidget(); ph1 = QHBoxLayout(); ph1.setContentsMargins(0,0,0,0)
+        ph1.addWidget(QLabel("sheet")); ph1.addWidget(self.mg_ph_sheet)
+        ph1.addSpacing(10)
+        ph1.addWidget(QLabel("ID col")); ph1.addWidget(self.mg_ph_id_col)
+        ph_opt1.setLayout(ph1)
+        ph_form.addRow("", ph_opt1)
+
+        ph_opt2 = QWidget(); ph2 = QHBoxLayout(); ph2.setContentsMargins(0,0,0,0)
+        ph2.addWidget(QLabel("merge")); ph2.addWidget(self.mg_ph_merge_mode)
+        ph2.addSpacing(10)
+        ph2.addWidget(QLabel("join")); ph2.addWidget(self.mg_ph_join)
+        ph_opt2.setLayout(ph2)
+        ph_form.addRow("", ph_opt2)
+
+        ph_opt3 = QWidget(); ph3 = QHBoxLayout(); ph3.setContentsMargins(0,0,0,0)
+        ph3.addWidget(QLabel("dup samples")); ph3.addWidget(self.mg_ph_dup_policy)
+        ph3.addSpacing(10)
+        ph3.addWidget(QLabel("trait collision")); ph3.addWidget(self.mg_trait_collision)
+        ph_opt3.setLayout(ph3)
+        ph_form.addRow("", ph_opt3)
+        gb_ph = QGroupBox("Phenotype merge")
+        gb_ph.setLayout(ph_form)
+        merge_lay.addWidget(gb_ph)
+
+        # Genotype merge
+        # Genotype merge (optional; default engine: PLINK2)
+        self.mg_do_geno_merge = QCheckBox("Merge genotype files (opt)")
+        self.mg_do_geno_merge.setChecked(False)
+        self.mg_geno_list = QListWidget()
+        self.mg_geno_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        b_mg_g_add = QPushButton("Add"); b_mg_g_add.setStyleSheet(GE_BTN_BROWSE_QSS); b_mg_g_add.clicked.connect(self.add_mg_geno_inputs)
+        b_mg_g_rm = QPushButton("Remove"); b_mg_g_rm.clicked.connect(lambda *a, **k: self.remove_selected_from_list(self.mg_geno_list))
+        b_mg_g_cl = QPushButton("Clear"); b_mg_g_cl.clicked.connect(lambda *a, **k: self.mg_geno_list.clear())
+
+        g_btns = QWidget(); g_b = QHBoxLayout(); g_b.setContentsMargins(0,0,0,0)
+        g_b.addWidget(b_mg_g_add); g_b.addWidget(b_mg_g_rm); g_b.addWidget(b_mg_g_cl)
+        #g_b.addStretch(1)
+        g_btns.setLayout(g_b)
+        self.mg_geno_out_prefix = QLineEdit("genotype_merged"); self.mg_geno_out_prefix.setPlaceholderText("Output prefix (basename)")
+        g_form = QFormLayout()
+        g_form.addRow(self.mg_do_geno_merge)
+        g_form.addRow("genotype inputs", self.mg_geno_list)
+        g_form.addRow(g_btns)
+        g_form.addRow("output prefix", self.mg_geno_out_prefix)
+        gb_gm = QGroupBox("Genotype merge")
+        gb_gm.setLayout(g_form)
+        merge_lay.addWidget(gb_gm)
+
+        def _refresh_mg_geno_ui(*args, **kwargs):
+            en = bool(self.mg_do_geno_merge.isChecked())
+            self.mg_geno_list.setEnabled(en)
+            self.mg_geno_out_prefix.setEnabled(en)
+        self.mg_do_geno_merge.stateChanged.connect(_refresh_mg_geno_ui)
+        _refresh_mg_geno_ui()
+
+        btn_mg_run = QPushButton("Run")
+        btn_mg_run.setStyleSheet(GE_BTN_RUN_QSS)
+        btn_mg_run.clicked.connect(lambda *args, **kwargs: self.run_merge_files())
+        merge_lay.addWidget(btn_mg_run)
+        merge_lay.addStretch(1)
+        merge_page.setLayout(merge_lay)
+
+        tabs.addTab(_wrap_in_scroll("Merge", merge_page), "Merge")
+
+        # --- Split (group-wise file split): split phenotype.tsv and sample lists by a column (e.g., Panel) ---
+        split_page = QWidget()
+        split_lay = QVBoxLayout()
+        split_lay.setContentsMargins(0, 0, 0, 0)
+        split_lay.setSpacing(8)
+
+        self.sp_output_folder = QLineEdit(); self.sp_output_folder.setPlaceholderText("Select output folder")
+        self.sp_prefix = QLineEdit(); self.sp_prefix.setPlaceholderText("optional: auto-generated if empty")
+
+        self.sp_pheno_path = QLineEdit(); self.sp_pheno_path.setPlaceholderText("phenotype.tsv (from Extract) or spreadsheet")
+        self.sp_pheno_sheet = QLineEdit(); self.sp_pheno_sheet.setPlaceholderText("optional: sheet name (xlsx only; empty=first)")
+        self.sp_id_col = QLineEdit("id"); self.sp_id_col.setPlaceholderText("sample ID column (default: id / first column)")
+        self.sp_group_col = QLineEdit("Panel"); self.sp_group_col.setPlaceholderText("group column (e.g., Panel)")
+        self.sp_group_values = QLineEdit("NAM,AMES,ASSO"); self.sp_group_values.setPlaceholderText("optional: values (comma-separated; empty=all)")
+        self.sp_min_samples = QSpinBox(); self.sp_min_samples.setRange(1, 1000000); self.sp_min_samples.setValue(1)
+        # Optional genotype split (assumes genotype IDs already match after Extract)
+        self.sp_do_split_geno = QCheckBox("Split genotype files together (opt)")
+        self.sp_do_split_geno.setChecked(False)
+        self.sp_geno_path = QLineEdit(); self.sp_geno_path.setPlaceholderText("(optional) matched genotype file (.vcf/.vcf.gz/.bcf OR .bed OR PLINK prefix)")
+        self.sp_geno_out_prefix = QLineEdit("genotype"); self.sp_geno_out_prefix.setPlaceholderText("Output prefix (basename)")
+
+        b_sp_out = QPushButton("Browse"); b_sp_out.setStyleSheet(GE_BTN_BROWSE_QSS); b_sp_out.clicked.connect(self.pick_sp_output_folder)
+        b_sp_ph  = QPushButton("Browse"); b_sp_ph.setStyleSheet(GE_BTN_BROWSE_QSS); b_sp_ph.clicked.connect(self.pick_sp_pheno_file)
+
+        self.b_sp_geno = QPushButton("Browse"); self.b_sp_geno.setStyleSheet(GE_BTN_BROWSE_QSS); self.b_sp_geno.clicked.connect(self.pick_sp_geno_file)
+
+        form_sp = QFormLayout()
+        form_sp.addRow("output_folder", self._hbox(self.sp_output_folder, b_sp_out))
+        form_sp.addRow("prefix (opt)", self.sp_prefix)
+        form_sp.addRow("pheno file", self._hbox(self.sp_pheno_path, b_sp_ph))
+
+        sp_opt1 = QWidget(); sp1 = QHBoxLayout(); sp1.setContentsMargins(0,0,0,0)
+        sp1.addWidget(QLabel("sheet")); sp1.addWidget(self.sp_pheno_sheet)
+        sp1.addSpacing(10)
+        sp1.addWidget(QLabel("ID col")); sp1.addWidget(self.sp_id_col)
+        sp_opt1.setLayout(sp1)
+        form_sp.addRow("", sp_opt1)
+
+        sp_opt2 = QWidget(); sp2 = QHBoxLayout(); sp2.setContentsMargins(0,0,0,0)
+        sp2.addWidget(QLabel("group col")); sp2.addWidget(self.sp_group_col)
+        sp2.addSpacing(10)
+        sp2.addWidget(QLabel("values")); sp2.addWidget(self.sp_group_values)
+        sp2.addSpacing(10)
+        sp2.addWidget(QLabel("min")); sp2.addWidget(self.sp_min_samples)
+        sp_opt2.setLayout(sp2)
+        form_sp.addRow("", sp_opt2)
+
+        gb_sp_in = QGroupBox("Inputs")
+        gb_sp_in.setLayout(form_sp)
+        split_lay.addWidget(gb_sp_in)
+        # Genotype split (optional; after Extract, genotype sample IDs must match phenotype IDs)
+        form_g = QFormLayout()
+        form_g.addRow(self.sp_do_split_geno)
+        form_g.addRow("Geno file", self._hbox(self.sp_geno_path, self.b_sp_geno))
+        form_g.addRow("Output prefix", self.sp_geno_out_prefix)
+        gb_g = QGroupBox("Genotype split")
+        gb_g.setLayout(form_g)
+        split_lay.addWidget(gb_g)
+
+        def _refresh_sp_geno_ui2(*args, **kwargs):
+            en = bool(self.sp_do_split_geno.isChecked())
+            self.sp_geno_path.setEnabled(en)
+            self.sp_geno_out_prefix.setEnabled(en)
+            self.b_sp_geno.setEnabled(en)
+        self.sp_do_split_geno.stateChanged.connect(_refresh_sp_geno_ui2)
+        _refresh_sp_geno_ui2()
+
+        btn_sp_run = QPushButton("Run")
+        btn_sp_run.setStyleSheet(GE_BTN_RUN_QSS)
+        btn_sp_run.clicked.connect(lambda *args, **kwargs: self.run_split_groups())
+        split_lay.addWidget(btn_sp_run)
+        split_lay.addStretch(1)
+        split_page.setLayout(split_lay)
+
+        tabs.addTab(_wrap_in_scroll("Split", split_page), "Split")
         tabs.addTab(_wrap_in_scroll("Genotype Imputation", imp_wrap), "Genotype Imputation")
         tabs.addTab(_wrap_in_scroll("Phenotype Imputation", ph_wrap), "Phenotype Imputation")
         #tabs.addTab(_wrap_in_scroll("Cross-population Imputation", self.cross_imp_box), "Cross-population Imputation")
@@ -16859,8 +17264,8 @@ class PreprocessTab(QWidget):
         # Marker map is only necessary for TSV input.
         self.fc_marker_map_file.setEnabled(mt == "TSV")
 
-        # Cross type is only relevant when generating RQTL output (i.e. input is not already RQTL).
-        self.fc_cross_type.setEnabled(mt != "RQTL")
+        # Output selection / cross type enabling
+        self._refresh_fc_output_ui()
 
         # Hint for genotype input
         if mt == "TSV":
@@ -16873,6 +17278,29 @@ class PreprocessTab(QWidget):
             self.fc_genotype_file.setPlaceholderText("R/qtl cross object (.rds)")
         elif mt == "RQTL2":
             self.fc_genotype_file.setPlaceholderText("qtl2 cross2 YAML (.yaml/.yml) or RDS")
+
+    def _refresh_fc_output_ui(self, *args, **kwargs):
+        """Sync File converter output-format selection and related enable/disable states."""
+        in_mode = (self.mode.currentText() or "").strip().upper()
+        cbs = getattr(self, "fc_out_cbs", None) or {}
+
+        # Disable the checkbox for the selected input format (it's ignored anyway).
+        for fmt, cb in cbs.items():
+            try:
+                cb.setEnabled(fmt != in_mode)
+            except Exception:
+                pass
+
+        # Cross type is only needed when we actually export RQTL/RQTL2 (and input is not already RQTL).
+        try:
+            need_cross = (in_mode != "RQTL") and (
+                (cbs.get("RQTL") is not None and cbs["RQTL"].isChecked()) or
+                (cbs.get("RQTL2") is not None and cbs["RQTL2"].isChecked())
+            )
+            self.fc_cross_type.setEnabled(bool(need_cross))
+        except Exception:
+            pass
+
     def _refresh_imp_ui(self, method: str):
         is_beagle = (method == "Beagle")
         is_em = (method == "EM")
@@ -16969,6 +17397,470 @@ class PreprocessTab(QWidget):
         if d:
             self.fc_output_folder.setText(d)
 
+    # ---------- Split/Merge/Extract ----------
+    def pick_sme_output_folder(self):
+        d = QFileDialog.getExistingDirectory(self, "Select output folder")
+        if d:
+            try:
+                self.sme_output_folder.setText(d)
+            except Exception:
+                pass
+
+    def pick_sme_pheno_file(self):
+        fp, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select phenotype file",
+            "",
+            "Spreadsheet/TSV/CSV (*.xlsx *.xls *.tsv *.txt *.csv);;All (*.*)",
+        )
+        if fp:
+            try:
+                self.sme_pheno_path.setText(fp)
+            except Exception:
+                pass
+
+    def pick_sme_ids_tsv(self):
+        fp, _ = QFileDialog.getOpenFileName(self, "Select genotype IDs table (TSV)", "", "TSV (*.tsv *.txt *.csv);;All (*.*)")
+        if fp:
+            try:
+                self.sme_ids_tsv.setText(fp)
+            except Exception:
+                pass
+
+    def pick_sme_alias_tsv(self):
+        fp, _ = QFileDialog.getOpenFileName(self, "Select alias table (TSV)", "", "TSV (*.tsv *.txt *.csv);;All (*.*)")
+        if fp:
+            try:
+                self.sme_alias_tsv.setText(fp)
+            except Exception:
+                pass
+
+
+    def pick_sme_geno_file(self):
+        fp, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select genotype file (matched)",
+            "",
+            "Genotype (*.vcf *.vcf.gz *.bcf *.bcf.gz *.bed *.bim *.fam *.pgen *.pvar *.psam);;All (*.*)",
+        )
+        if fp:
+            try:
+                self.sme_geno_path.setText(fp)
+            except Exception:
+                pass
+
+    def pick_sme_vcf_file(self):
+        fp, _ = QFileDialog.getOpenFileName(self, "Select VCF", "", "VCF (*.vcf *.vcf.gz *.bcf *.bcf.gz);;All (*.*)")
+        if fp:
+            try:
+                # Backward-compatible: write into new genotype path field
+                self.sme_geno_path.setText(fp)
+            except Exception:
+                pass
+
+    def pick_sme_plink_prefix(self):
+        fp, _ = QFileDialog.getOpenFileName(self, "Select PLINK file (bed/pgen)", "", "PLINK (*.bed *.pgen *.bim *.fam *.pvar *.psam);;All (*.*)")
+        if fp:
+            try:
+                p = Path(fp)
+                if p.suffix.lower() in ('.bed', '.bim', '.fam', '.pgen', '.pvar', '.psam'):
+                    p = p.with_suffix('')
+                # Backward-compatible: write into new genotype path field
+                self.sme_geno_path.setText(str(p))
+            except Exception:
+                try:
+                    self.sme_geno_path.setText(fp)
+                except Exception:
+                    pass
+
+    def run_split_merge_extract(self):
+        # Validate
+        out_base = (self.sme_output_folder.text() or '').strip()
+        ph = (self.sme_pheno_path.text() or '').strip()
+        ids = (self.sme_ids_tsv.text() or '').strip()
+        do_extract_geno = bool(self.sme_do_extract_geno.isChecked())
+        geno_file = (self.sme_geno_path.text() or '').strip()
+
+        if not out_base:
+            QMessageBox.warning(self, 'Error', 'Please select output_folder')
+            return
+        if not ph or not Path(ph).exists():
+            QMessageBox.warning(self, 'Error', 'phenotype file not set / not found')
+            return
+
+        # If genotype extraction is enabled, we will derive sample IDs from the genotype file itself.
+        # In that case, the external genotype IDs table is ignored/disabled.
+        if do_extract_geno:
+            if not geno_file:
+                QMessageBox.warning(self, 'Error', 'Genotype extraction is enabled but genotype file is empty')
+                return
+            pp = Path(geno_file)
+            if pp.exists() and pp.name.lower().endswith(('.vcf', '.vcf.gz', '.bcf', '.bcf.gz')):
+                pass
+            else:
+                # Accept PLINK prefix or a .bed/.bim/.fam selection
+                if pp.suffix.lower() in ('.bed', '.bim', '.fam', '.pgen', '.pvar', '.psam'):
+                    pp = pp.with_suffix('')
+                    geno_file = str(pp)
+                if not ((pp.with_suffix('.bed').exists() and pp.with_suffix('.bim').exists() and pp.with_suffix('.fam').exists()) or (pp.with_suffix('.pgen').exists() and pp.with_suffix('.pvar').exists() and pp.with_suffix('.psam').exists())):
+                    QMessageBox.warning(self, 'Error', f'Genotype file/prefix not found or unsupported: {geno_file}')
+                    return
+        else:
+            if not ids or not Path(ids).exists():
+                QMessageBox.warning(self, 'Error', 'genotype IDs table not set / not found')
+                return
+
+        prefix = (self.sme_prefix.text() or '').strip()
+        if not prefix:
+            prefix = f"split_merge_extract_{time.strftime('%Y%m%d_%H%M%S')}"
+        prefix = re.sub(r"[^A-Za-z0-9_.-]+", "_", prefix)
+
+        out_root = Path(out_base).expanduser().resolve() / prefix
+        out_root.mkdir(parents=True, exist_ok=True)
+
+        def _map_tr(s: str) -> str:
+            s2 = (s or '').lower()
+            if 'before' in s2:
+                return 'before_delim'
+            if 'after' in s2:
+                return 'after_delim'
+            if 'regex' in s2:
+                return 'regex'
+            return 'none'
+
+        params = {
+            'out_dir_override': str(out_root),
+            # If do_extract_geno is True, id_table_tsv will be ignored (runner derives sample IDs from genotype_file)
+            'id_table_tsv': '' if do_extract_geno else ids,
+            'id_col': (self.sme_geno_id_col.text() or 'id').strip() or 'id',
+            'fid_col': (self.sme_geno_fid_col.text() or '').strip(),
+            'phenotype_path': ph,
+            'phenotype_sheet': (self.sme_pheno_sheet.text() or '').strip(),
+            'phenotype_id_col': (self.sme_pheno_id_col.text() or '').strip(),
+            'geno_transform': _map_tr(self.sme_geno_transform.currentText()),
+            'pheno_transform': _map_tr(self.sme_pheno_transform.currentText()),
+            'delim': (self.sme_delim.text() or ':').strip() or ':',
+            'regex': (self.sme_regex.text() or '').strip(),
+            'strip': bool(self.sme_strip.isChecked()),
+            'collapse_spaces': bool(self.sme_collapse_spaces.isChecked()),
+            'remove_parentheses': bool(self.sme_remove_parentheses.isChecked()),
+            'case': (self.sme_case.currentText() or 'keep').strip(),
+            'remove_chars_regex': (self.sme_remove_chars_regex.text() or '').strip(),
+            'alias_tsv': (self.sme_alias_tsv.text() or '').strip(),
+            'pheno_filter_col': (self.sme_filter_col.text() or '').strip(),
+            'pheno_filter_values': (self.sme_filter_values.text() or '').strip(),
+            'panel_aware': bool(self.sme_panel_aware.isChecked()),
+            'panel_col': (self.sme_panel_col.text() or '').strip(),
+            'panel_values': (self.sme_panel_values.text() or '').strip(),
+            'panel_id_col': (self.sme_panel_id_col.text() or '').strip(),
+            'keep_genotype': (self.sme_keep_geno.currentText() or 'first').strip(),
+            'phenotype_reduce': (self.sme_reduce_pheno.currentText() or 'mean_numeric').strip(),
+            'write_phenotype_tsv': True,
+            'phenotype_out_name': 'phenotype.tsv',
+            'write_sample_list': True,
+            'sample_list_name': 'selected_samples.txt',
+            'extract_genotype': bool(do_extract_geno),
+            'genotype_file': geno_file,
+            'genotype_out_prefix': (self.sme_geno_out_prefix.text() or 'genotype_subset').strip() or 'genotype_subset',
+        }
+
+        ok, _out_dir, _run_dir = self._run_plugin_step(self.PLUGIN_SPLIT_MERGE_EXTRACT, params, 'Split/Merge/Extract')
+        if not ok:
+            QMessageBox.critical(self, 'Run failed', f"Split/Merge/Extract failed. See log for details.\nOutput folder: {out_root}")
+            return
+
+        # Show match_summary.tsv
+        try:
+            import pandas as pd
+            ms = out_root / 'match_summary.tsv'
+            if ms.exists():
+                df = pd.read_csv(ms, sep='	', dtype=str)
+                self.results.set_table_df(df, source_path=ms)
+        except Exception as e:
+            self._log_msg(f"[WARN] Failed to load match_summary.tsv: {e}")
+
+        self._log_msg(f"[OK] Split/Merge/Extract done. Output: {out_root}")
+
+    # ---------- Split (group-wise split only) ----------
+    def pick_sp_output_folder(self):
+        d = QFileDialog.getExistingDirectory(self, "Select output folder")
+        if d:
+            try:
+                self.sp_output_folder.setText(d)
+            except Exception:
+                pass
+
+    def pick_sp_pheno_file(self):
+        fp, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select phenotype file (typically phenotype.tsv from Extract)",
+            "",
+            "Spreadsheet/TSV/CSV (*.xlsx *.xls *.tsv *.txt *.csv);;All (*.*)",
+        )
+        if fp:
+            try:
+                self.sp_pheno_path.setText(fp)
+            except Exception:
+                pass
+
+
+    def pick_sp_geno_file(self):
+        fp, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select genotype file (matched)",
+            "",
+            "Genotype (*.vcf *.vcf.gz *.bcf *.bcf.gz *.bed *.bim *.fam *.pgen *.pvar *.psam);;All (*.*)",
+        )
+        if fp:
+            try:
+                self.sp_geno_path.setText(fp)
+            except Exception:
+                pass
+
+    def pick_sp_vcf_file(self):
+        fp, _ = QFileDialog.getOpenFileName(self, "Select matched genotype VCF", "", "VCF (*.vcf *.vcf.gz *.bcf *.bcf.gz);;All (*.*)")
+        if fp:
+            try:
+                self.sp_geno_path.setText(fp)
+            except Exception:
+                pass
+
+    def pick_sp_plink_prefix(self):
+        fp, _ = QFileDialog.getOpenFileName(self, "Select matched genotype PLINK", "", "PLINK (*.bed *.bim *.fam *.pgen *.pvar *.psam);;All (*.*)")
+        if fp:
+            try:
+                p = Path(fp)
+                if p.suffix.lower() in ('.bed', '.bim', '.fam', '.pgen', '.pvar', '.psam'):
+                    p = p.with_suffix('')
+                self.sp_geno_path.setText(str(p))
+            except Exception:
+                try:
+                    self.sp_geno_path.setText(fp)
+                except Exception:
+                    pass
+
+    def run_split_groups(self):
+        out_base = (self.sp_output_folder.text() or '').strip()
+        ph = (self.sp_pheno_path.text() or '').strip()
+        if not out_base:
+            QMessageBox.warning(self, 'Error', 'Please select output_folder')
+            return
+        if not ph or not Path(ph).exists():
+            QMessageBox.warning(self, 'Error', 'phenotype file not set / not found')
+            return
+
+        grp_col = (self.sp_group_col.text() or '').strip()
+        if not grp_col:
+            QMessageBox.warning(self, 'Error', 'Please set group column (e.g., Panel)')
+            return
+
+        prefix = (self.sp_prefix.text() or '').strip()
+        if not prefix:
+            prefix = f"split_{grp_col}_{time.strftime('%Y%m%d_%H%M%S')}"
+        prefix = re.sub(r"[^A-Za-z0-9_.-]+", "_", prefix)
+
+        out_root = Path(out_base).expanduser().resolve() / prefix
+        out_root.mkdir(parents=True, exist_ok=True)
+
+        # Genotype split (optional; assumes IDs already match after Extract)
+        do_geno_split = bool(self.sp_do_split_geno.isChecked())
+        geno_path = (self.sp_geno_path.text() or '').strip()
+        if do_geno_split:
+            if not geno_path:
+                QMessageBox.warning(self, 'Error', 'Genotype split is enabled but genotype file/prefix is empty')
+                return
+            pp = Path(geno_path)
+            # accept VCF/BCF file
+            if pp.exists() and (pp.name.lower().endswith('.vcf') or pp.name.lower().endswith('.vcf.gz') or pp.name.lower().endswith('.bcf') or pp.name.lower().endswith('.bcf.gz')):
+                pass
+            else:
+                # accept PLINK prefix or .bed file
+                if pp.suffix.lower() in ('.bed', '.bim', '.fam', '.pgen', '.pvar', '.psam'):
+                    pp = pp.with_suffix('')
+                    geno_path = str(pp)
+                if not ((pp.with_suffix('.bed').exists() and pp.with_suffix('.bim').exists() and pp.with_suffix('.fam').exists()) or (pp.with_suffix('.pgen').exists() and pp.with_suffix('.pvar').exists() and pp.with_suffix('.psam').exists())):
+                    QMessageBox.warning(self, 'Error', f'Genotype input not found / unsupported: {geno_path}')
+                    return
+
+        params = {
+            'out_dir_override': str(out_root),
+            'phenotype_path': ph,
+            'phenotype_sheet': (self.sp_pheno_sheet.text() or '').strip(),
+            'sample_id_col': (self.sp_id_col.text() or '').strip(),
+            'group_col': grp_col,
+            'group_values': (self.sp_group_values.text() or '').strip(),
+            'min_samples': int(self.sp_min_samples.value()),
+            'split_genotype': bool(do_geno_split),
+            'genotype_path': geno_path,
+            'genotype_out_prefix': (self.sp_geno_out_prefix.text() or 'genotype').strip() or 'genotype',
+            'write_keep_fid_iid': True,
+            'write_sample_list': True,
+        }
+
+        ok, _out_dir, _run_dir = self._run_plugin_step(self.PLUGIN_SPLIT_GROUPS, params, 'Split')
+        if not ok:
+            QMessageBox.critical(self, 'Run failed', f"Split failed. See log for details.\nOutput folder: {out_root}")
+            return
+
+        # Show split_summary.tsv
+        try:
+            import pandas as pd
+            sm = out_root / 'split_summary.tsv'
+            if sm.exists():
+                df = pd.read_csv(sm, sep='\t', dtype=str)
+                self.results.set_table_df(df, source_path=sm)
+        except Exception as e:
+            self._log_msg(f"[WARN] Failed to load split_summary.tsv: {e}")
+
+        self._log_msg(f"[OK] Split done. Output: {out_root}")
+
+
+    # ---------- Merge (phenotype/genotype) ----------
+    def pick_mg_output_folder(self):
+        d = QFileDialog.getExistingDirectory(self, "Select output folder")
+        if d:
+            self.mg_output_folder.setText(d)
+
+    def remove_selected_from_list(self, lw):
+        try:
+            for it in lw.selectedItems():
+                lw.takeItem(lw.row(it))
+        except Exception:
+            pass
+
+    def add_mg_pheno_files(self):
+        fps, _ = QFileDialog.getOpenFileNames(self, "Add phenotype files", "", "Tables (*.tsv *.txt *.csv *.xlsx *.xls);;All (*.*)")
+        if not fps:
+            return
+        for fp in fps:
+            self.mg_ph_list.addItem(fp)
+
+    def add_mg_geno_inputs(self):
+        fps, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Add genotype files (matched; VCF or PLINK)",
+            "",
+            "Genotype (*.vcf *.vcf.gz *.bcf *.bcf.gz *.bed *.bim *.fam *.pgen *.pvar *.psam);;All (*.*)",
+        )
+        if not fps:
+            return
+        for fp in fps:
+            try:
+                pp = Path(fp)
+                if pp.suffix.lower() in ('.bed', '.bim', '.fam', '.pgen', '.pvar', '.psam'):
+                    pp = pp.with_suffix('')
+                    self.mg_geno_list.addItem(str(pp))
+                else:
+                    self.mg_geno_list.addItem(fp)
+            except Exception:
+                self.mg_geno_list.addItem(fp)
+
+    def run_merge_files(self):
+        out_base = (self.mg_output_folder.text() or '').strip()
+        if not out_base:
+            QMessageBox.warning(self, 'Error', 'Please select output_folder')
+            return
+
+        prefix = (self.mg_prefix.text() or '').strip()
+        if not prefix:
+            prefix = f"merge_{time.strftime('%Y%m%d_%H%M%S')}"
+        prefix = re.sub(r"[^A-Za-z0-9_.-]+", "_", prefix)
+
+        out_root = Path(out_base).expanduser().resolve() / prefix
+        out_root.mkdir(parents=True, exist_ok=True)
+
+        # phenotype list
+        ph_files = []
+        try:
+            for i in range(self.mg_ph_list.count()):
+                ph_files.append(self.mg_ph_list.item(i).text())
+        except Exception:
+            ph_files = []
+        ph_files = [x for x in ph_files if x]
+
+        # genotype list
+        geno_inputs = []
+        try:
+            for i in range(self.mg_geno_list.count()):
+                geno_inputs.append(self.mg_geno_list.item(i).text())
+        except Exception:
+            geno_inputs = []
+        geno_inputs = [x for x in geno_inputs if x]
+
+        # Validate phenotype files
+        for fp in ph_files:
+            if not Path(fp).exists():
+                QMessageBox.warning(self, 'Error', f'Phenotype file not found: {fp}')
+                return
+
+        do_geno_merge = bool(getattr(self, 'mg_do_geno_merge', None).isChecked()) if hasattr(self, 'mg_do_geno_merge') else False
+
+        if do_geno_merge:
+            if not geno_inputs:
+                QMessageBox.warning(self, 'Error', 'Genotype merge is enabled but no genotype inputs were added')
+                return
+            # Validate genotype inputs (VCF path or PLINK prefix/.bed)
+            for gi in geno_inputs:
+                gi = (gi or '').strip()
+                if not gi:
+                    continue
+                pp = Path(gi)
+                # VCF/BCF
+                if pp.exists() and (pp.name.lower().endswith('.vcf') or pp.name.lower().endswith('.vcf.gz') or pp.name.lower().endswith('.bcf') or pp.name.lower().endswith('.bcf.gz')):
+                    continue
+                # PLINK prefix (accept stored prefix or file path)
+                if pp.suffix.lower() in ('.bed', '.bim', '.fam', '.pgen', '.pvar', '.psam'):
+                    pp = pp.with_suffix('')
+                if (pp.with_suffix('.bed').exists() and pp.with_suffix('.bim').exists() and pp.with_suffix('.fam').exists()) or (pp.with_suffix('.pgen').exists() and pp.with_suffix('.pvar').exists() and pp.with_suffix('.psam').exists()):
+                    continue
+                if pp.exists():
+                    # some other file type
+                    QMessageBox.warning(self, 'Error', f'Unsupported genotype input: {gi}')
+                    return
+                QMessageBox.warning(self, 'Error', f'Genotype input not found (VCF/PLINK): {gi}')
+                return
+
+        # phenotype merge mode mapping
+        mm = (self.mg_ph_merge_mode.currentText() or 'Auto').strip().lower()
+        if 'join' in mm:
+            ph_merge_mode = 'hstack'
+        elif 'append' in mm:
+            ph_merge_mode = 'vstack'
+        else:
+            ph_merge_mode = 'auto'
+
+        params = {
+            'out_dir_override': str(out_root),
+            'phenotype_files': ph_files,
+            'phenotype_sheet': (self.mg_ph_sheet.text() or '').strip(),
+            'phenotype_id_col': (self.mg_ph_id_col.text() or '').strip(),
+            'phenotype_merge_mode': ph_merge_mode,
+            'phenotype_join': (self.mg_ph_join.currentText() or 'outer').strip(),
+            'phenotype_dup_policy': (self.mg_ph_dup_policy.currentText() or 'mean_numeric').strip(),
+            'trait_collision': (self.mg_trait_collision.currentText() or 'prefix').strip(),
+            'merge_genotype': bool(do_geno_merge),
+            'genotype_inputs': geno_inputs,
+            'genotype_out_prefix': (self.mg_geno_out_prefix.text() or 'genotype_merged').strip() or 'genotype_merged',
+            'genotype_inputs': geno_inputs,
+        }
+
+        ok, _out_dir, _run_dir = self._run_plugin_step(self.PLUGIN_MERGE_FILES, params, 'Merge')
+        if not ok:
+            QMessageBox.critical(self, 'Run failed', f"Merge failed. See log for details.\nOutput folder: {out_root}")
+            return
+
+        # Show key reports if present
+        try:
+            import pandas as pd
+            rep = out_root / 'phenotype_merge_report.tsv'
+            if rep.exists():
+                df = pd.read_csv(rep, sep='\t', dtype=str)
+                self.results.set_table_df(df, source_path=rep)
+        except Exception as e:
+            self._log_msg(f"[WARN] Failed to load phenotype_merge_report.tsv: {e}")
+
+        self._log_msg(f"[OK] Merge done. Output: {out_root}")
+
     # ---------- Filtering (QC) ----------
     def copy_fc_to_filter(self):
         try:
@@ -17058,10 +17950,22 @@ class PreprocessTab(QWidget):
             except Exception:
                 pass
     def run_preprocess(self):
-        """File converter: generate all formats except the selected input format."""
+        """File converter: generate selected output formats (excluding the selected input format)."""
         in_mode = (self.mode.currentText() or "").strip().upper()
         geno_txt = self.fc_genotype_file.text().strip()
         out_txt = self.fc_output_folder.text().strip()
+
+        # Selected output formats (ignore the input format even if checked)
+        cbs = getattr(self, "fc_out_cbs", None) or {}
+        if cbs:
+            selected = {fmt for fmt, cb in cbs.items() if cb.isChecked()}
+        else:
+            selected = set(self.MODES)
+
+        selected_outputs = [fmt for fmt in self.MODES if fmt != in_mode and fmt in selected]
+        if not selected_outputs:
+            QMessageBox.information(self, "Info", "No output format selected (other than the input format).")
+            return
 
         if in_mode not in set(self.MODES):
             QMessageBox.warning(self, "Error", "Please select a valid Mode")
@@ -17185,7 +18089,7 @@ class PreprocessTab(QWidget):
 
         try:
             for fmt in self.MODES:
-                if fmt == in_mode:
+                if fmt == in_mode or fmt not in selected_outputs:
                     continue
 
                 if fmt == "TSV":
@@ -17375,7 +18279,7 @@ class PreprocessTab(QWidget):
             return
 
         # Run QC filter plugin (PLINK2)
-        p_plink2 = self.flt_plink2_bin.text().strip()
+        p_plink2 = "plink2"
         params = {
             "plink_prefix": str(plink_prefix),
             "phenotype_tsv": str(phenotype_tsv) if phenotype_tsv else "",
