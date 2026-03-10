@@ -557,44 +557,55 @@ if (method %in% c("mean", "em", "rf")) {
   # Convert Beagle VCF to TSV (dosage 0/1/2 from GT)
   cat("[impute_genotypes] parsing Beagle output to TSV\n")
 
-  # read VCF line-by-line to avoid huge memory overhead
-  con <- if (grepl("\\.gz$", out_vcf_gz)) gzfile(out_vcf_gz, open = "rt") else file(out_vcf_gz, open = "rt")
-  on.exit({if (!is.null(con)) try(close(con), silent=TRUE)}, add = TRUE)
-
-  ids <- NULL
-  markers <- character(0)
-  rows <- list()
-  header_done <- FALSE
-
-  while (TRUE) {
-    ln <- readLines(con, n = 1)
-    if (length(ln) == 0) break
-    if (startsWith(ln, "##")) next
-    if (startsWith(ln, "#CHROM")) {
-      parts <- strsplit(ln, "\t", fixed = TRUE)[[1]]
-      ids <- parts[10:length(parts)]
-      header_done <- TRUE
-      next
-    }
-    if (!header_done) next
-
-    parts <- strsplit(ln, "\t", fixed = TRUE)[[1]]
-    mid <- parts[3]
-    markers <- c(markers, mid)
-
-    sample_fields <- parts[10:length(parts)]
-    dos <- vapply(sample_fields, parse_gt_to_dosage, numeric(1))
-    rows[[length(rows) + 1L]] <- dos
-  }
-
-  if (is.null(ids)) stop("Failed to parse VCF header (no sample IDs)")
-
-  Ximp <- do.call(rbind, rows)
-  colnames(Ximp) <- ids
-
-  # Transpose to sample x marker
-  Ximp2 <- t(Ximp)
-  ids2 <- rownames(Ximp2)
+  # # read VCF line-by-line to avoid huge memory overhead
+  # con <- if (grepl("\\.gz$", out_vcf_gz)) gzfile(out_vcf_gz, open = "rt") else file(out_vcf_gz, open = "rt")
+  # on.exit({if (!is.null(con)) try(close(con), silent=TRUE)}, add = TRUE)
+  # 
+  # ids <- NULL
+  # markers <- character(0)
+  # rows <- list()
+  # header_done <- FALSE
+  # 
+  # while (TRUE) {
+  #   ln <- readLines(con, n = 1)
+  #   if (length(ln) == 0) break
+  #   if (startsWith(ln, "##")) next
+  #   if (startsWith(ln, "#CHROM")) {
+  #     parts <- strsplit(ln, "\t", fixed = TRUE)[[1]]
+  #     ids <- parts[10:length(parts)]
+  #     header_done <- TRUE
+  #     next
+  #   }
+  #   if (!header_done) next
+  # 
+  #   parts <- strsplit(ln, "\t", fixed = TRUE)[[1]]
+  #   mid <- parts[3]
+  #   markers <- c(markers, mid)
+  # 
+  #   sample_fields <- parts[10:length(parts)]
+  #   dos <- vapply(sample_fields, parse_gt_to_dosage, numeric(1))
+  #   rows[[length(rows) + 1L]] <- dos
+  # }
+  # 
+  # if (is.null(ids)) stop("Failed to parse VCF header (no sample IDs)")
+  # 
+  # Ximp <- do.call(rbind, rows)
+  # colnames(Ximp) <- ids
+  # 
+  # # Transpose to sample x marker
+  # Ximp2 <- t(Ximp)
+  # ids2 <- rownames(Ximp2)
+  
+  bed0 <- gaston::read.vcf(input_vcf,
+                           convert.chr = F)
+  bed1 <- gaston::read.vcf(out_vcf_gz,
+                           convert.chr = F)
+  
+  X0 <- gaston::as.matrix(bed0)
+  Ximp2 <- gaston::as.matrix(bed1)
+  
+  markers <- bed0@snps$id
+  ids2 <- bed0@ped$id
 
   # output TSV: id + markers
   out_tsv_cont <- paste0(out_prefix, ".tsv")
