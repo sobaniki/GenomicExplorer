@@ -12463,6 +12463,7 @@ class GWASTab(QWidget):
         b_out.setStyleSheet(GE_BTN_BROWSE_QSS)
         b_out.setToolTip('Select output folder')
         b_out.clicked.connect(lambda *args, **kwargs: self.pick_output_dir())
+
         b_cv = QPushButton('Browse')
         b_cv.setStyleSheet(GE_BTN_BROWSE_QSS)
         #b_cv.setToolTip('Select covariates.tsv (optional)')
@@ -13302,6 +13303,48 @@ class QTLBIMTab(QWidget):
         d = QFileDialog.getExistingDirectory(self, 'Select output folder', '')
         if d:
             self.output_dir.setText(d)
+
+        # one-time auto-link with Prepare mppR output_folder
+        self._maybe_link_output_dirs(src='run')
+
+
+    def pick_prep_output_dir(self):
+        d = QFileDialog.getExistingDirectory(self, 'Select output folder (Prepare mppR)', '')
+        if d:
+            self.prep_output_dir.setText(d)
+
+        # one-time auto-link with QTL output_folder
+        self._maybe_link_output_dirs(src='prep')
+
+
+    def _maybe_link_output_dirs(self, src: str):
+        """Auto-fill the other output_folder the first time one is chosen."""
+        if getattr(self, '_outdir_linked_once', False):
+            return
+        try:
+            run_dir = (self.output_dir.text() or '').strip()
+            prep_dir = (self.prep_output_dir.text() or '').strip()
+        except Exception:
+            return
+
+        if src == 'run':
+            if run_dir and not prep_dir:
+                try:
+                    self.prep_output_dir.setText(run_dir)
+                except Exception:
+                    pass
+                self._outdir_linked_once = True
+            elif run_dir and prep_dir:
+                self._outdir_linked_once = True
+        else:
+            if prep_dir and not run_dir:
+                try:
+                    self.output_dir.setText(prep_dir)
+                except Exception:
+                    pass
+                self._outdir_linked_once = True
+            elif prep_dir and run_dir:
+                self._outdir_linked_once = True
 
     def run_qtl_bim(self):
         cr = self.cross_rds.text().strip()
@@ -14658,6 +14701,7 @@ class MPPRTab(QWidget):
     Those tables are then rendered by the common QTL Plotly builder in ResultsPane.
     """
     PLUGIN_ID = "qtl_mppr"
+    PLUGIN_PREP_ID = "prep_mppr_inputs"
 
     def __init__(self, app_log: QTextEdit, results: ResultsPane):
         super().__init__()
@@ -14665,6 +14709,7 @@ class MPPRTab(QWidget):
         self.results = results
         self.last_out_dir = None  # type: Path | None
         self._artifacts: dict = {}
+        self._outdir_linked_once = False
 
         # output_folder (optional)
         self.output_dir = QLineEdit()
@@ -14726,6 +14771,70 @@ class MPPRTab(QWidget):
         b_run.setStyleSheet(GE_BTN_RUN_QSS)
         b_run.clicked.connect(lambda *args, **kwargs: self.run_mppr())
 
+
+        # ---- Prepare mppR inputs (optional; from PLINK + phenotype) ----
+        self.prep_output_dir = QLineEdit()
+        self.prep_output_dir.setPlaceholderText("Select output folder (for prepared mppR inputs)")
+        b_p_out = QPushButton('Browse')
+        b_p_out.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_p_out.clicked.connect(lambda *args, **kwargs: self.pick_output_dir2())
+
+        self.prep_plink_prefix = QLineEdit()
+        self.prep_plink_prefix.setPlaceholderText("PLINK prefix (.bed/.bim/.fam)")
+        b_p_plink = QPushButton('Browse'); b_p_plink.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_p_plink.clicked.connect(lambda *args, **kwargs: self._pick_plink_prefix(self.prep_plink_prefix, 'Select PLINK prefix'))
+
+        self.prep_pheno_path = QLineEdit()
+        self.prep_pheno_path.setPlaceholderText("phenotype.tsv (from Extract) or phenotype spreadsheet")
+        b_p_ph = QPushButton('Browse'); b_p_ph.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_p_ph.clicked.connect(lambda *args, **kwargs: self._pick_file_any(self.prep_pheno_path, 'Select phenotype file'))
+
+        self.prep_sheet = QLineEdit()
+        self.prep_sheet.setPlaceholderText("optional (xlsx sheet name/index)")
+
+        self.prep_id_col = QLineEdit()
+        self.prep_id_col.setPlaceholderText("optional: id column (auto if empty)")
+
+        self.prep_cross_col = QLineEdit('Family_Inbred_Name')
+        self.prep_cross_col.setPlaceholderText("cross column (e.g., Family_Inbred_Name)")
+
+        self.prep_panel_col = QLineEdit('Panel')
+        self.prep_panel_col.setPlaceholderText("optional: panel column (e.g., Panel)")
+
+        self.prep_panel_values = QLineEdit('NAM')
+        self.prep_panel_values.setPlaceholderText("optional: values (comma-separated; e.g., NAM)")
+
+        self.prep_iid_delim = QLineEdit(':')
+        self.prep_iid_delim.setPlaceholderText("IID key delimiter (e.g., :)")
+
+
+        # Parent replicate selection (when multiple IIDs match the same parent key)
+        self.prep_parent_pick = QComboBox()
+        self.prep_parent_pick.addItem('Best call rate (lowest missingness)', 'best_callrate')
+        self.prep_parent_pick.addItem('Lexicographic first', 'lexicographic')
+        self.prep_parent_pick.addItem('First match (fast)', 'first')
+
+        # Optional genetic map to convert bp -> cM in marker_map.tsv
+        self.prep_genmap_path = QLineEdit()
+        self.prep_genmap_path.setPlaceholderText("optional: genetic map with cM (tsv/csv/xlsx)")
+        b_p_gm = QPushButton('Browse'); b_p_gm.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_p_gm.clicked.connect(lambda *args, **kwargs: self._pick_file_any(self.prep_genmap_path, 'Select genetic map file (cM)'))
+
+        self.prep_genmap_sheet = QLineEdit()
+        self.prep_genmap_sheet.setPlaceholderText("optional (xlsx sheet name/index)")
+
+        self.prep_map_merge = QComboBox()
+        self.prep_map_merge.addItem('Marker (Chr+bp)', 'marker_then_chr_bp')
+        self.prep_map_merge.addItem('Marker', 'by_marker')
+        self.prep_map_merge.addItem('Chr+bp', 'by_chr_bp')
+
+        self.prep_interp_cm = QCheckBox('Inter/extra polate missing cM')
+        self.prep_interp_cm.setChecked(True)
+
+        b_p_run = QPushButton('Prepare inputs')
+        b_p_run.setStyleSheet(GE_BTN_RUN_QSS)
+        b_p_run.clicked.connect(lambda *args, **kwargs: self.run_mppr_prep())
+
         # Layout
         form = QFormLayout()
         try:
@@ -14779,6 +14888,51 @@ class MPPRTab(QWidget):
         ], per_row=2)
         form.addRow('Permutation', w_perm)
 
+
+
+        # ---- Prep UI ----
+        prep_form = QFormLayout()
+        try:
+            prep_form.setRowWrapPolicy(QFormLayout.WrapLongRows)
+            prep_form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        except Exception:
+            pass
+
+        def _row2(le, btn):
+            r = QHBoxLayout(); r.setContentsMargins(0,0,0,0)
+            r.addWidget(le, 1); r.addWidget(btn)
+            w = QWidget(); w.setLayout(r); return w
+
+        # output_folder for prepared inputs (linked to QTL output_folder on first selection)
+        prep_form.addRow('output_folder', _row2(self.prep_output_dir, b_p_out))
+
+        prep_form.addRow('plink_prefix', _row2(self.prep_plink_prefix, b_p_plink))
+        prep_form.addRow('phenotype', _row2(self.prep_pheno_path, b_p_ph))
+
+        # Compact layout: 2 rows x 3 columns for the six text boxes below
+        prep_form.addRow(make_pairs_grid([
+            ('sheet', self.prep_sheet),
+            ('id_col (opt)', self.prep_id_col),
+            ('cross_col', self.prep_cross_col),
+            ('panel_col (opt)', self.prep_panel_col),
+            ('panel_values', self.prep_panel_values),
+            ('iid_key_delim', self.prep_iid_delim),
+        ], per_row=3))
+
+        prep_form.addRow('parent_pick', self.prep_parent_pick)
+        prep_form.addRow('genetic_map (opt)', _row2(self.prep_genmap_path, b_p_gm))
+
+        # Compact layout: 1 row x 3 columns
+        prep_form.addRow(make_pairs_grid([
+            ('genmap', self.prep_genmap_sheet),
+            ('merge', self.prep_map_merge),
+            ('', self.prep_interp_cm),
+        ], per_row=3))
+
+        prep_form.addRow(b_p_run)
+
+        prep_box = QGroupBox('Prepare mppR inputs (PLINK + phenotype)')
+        prep_box.setLayout(prep_form)
         box = QGroupBox('QTL (mppR: NAM / multi-family)')
         box.setLayout(form)
 
@@ -14806,6 +14960,7 @@ class MPPRTab(QWidget):
         vbox.setLayout(vform)
 
         lay = QVBoxLayout()
+        lay.addWidget(prep_box)
         lay.addWidget(box)
         lay.addWidget(vbox)
         lay.addStretch(1)
@@ -14823,6 +14978,170 @@ class MPPRTab(QWidget):
         d = QFileDialog.getExistingDirectory(self, 'Select output folder', '')
         if d:
             self.output_dir.setText(d)
+    
+    def pick_output_dir2(self):
+        d = QFileDialog.getExistingDirectory(self, 'Select output folder', '')
+        if d:
+            self.prep_output_dir.setText(d)
+    
+    def _pick_plink_prefix(self, le: QLineEdit, title: str = 'Select PLINK prefix'):
+        fp, _ = QFileDialog.getOpenFileName(self, title, '', 'PLINK (*.bed *.bim *.fam *.pgen *.pvar *.psam);;All (*.*)')
+        if fp:
+            try:
+                p = Path(fp)
+                if p.suffix.lower() in ('.bed', '.bim', '.fam', '.pgen', '.pvar', '.psam'):
+                    p = p.with_suffix('')
+                le.setText(str(p))
+            except Exception:
+                le.setText(fp)
+
+    def _pick_file_any(self, le: QLineEdit, title: str = 'Select file'):
+        fp, _ = QFileDialog.getOpenFileName(self, title, '', 'All (*.*)')
+        if fp:
+            le.setText(fp)
+
+    def run_mppr_prep(self):
+        """Prepare mppR input files from PLINK + phenotype.
+
+        Outputs are written under output_folder/mppr_inputs_* and the paths are auto-filled
+        into the mppR run inputs.
+        """
+        plink_prefix = (self.prep_plink_prefix.text() or '').strip()
+        pheno_path = (self.prep_pheno_path.text() or '').strip()
+        if not plink_prefix:
+            QMessageBox.warning(self, 'Error', 'plink_prefix is empty')
+            return
+        if not pheno_path or not Path(pheno_path).exists():
+            QMessageBox.warning(self, 'Error', 'phenotype file not set / not found')
+            return
+
+        # choose output folder
+        out_root = (self.prep_output_dir.text() or '').strip() or (self.output_dir.text() or '').strip()
+        if not out_root:
+            out_root = str(Path(pheno_path).parent)
+            try:
+                self.prep_output_dir.setText(out_root)
+            except Exception:
+                pass
+            try:
+                self.output_dir.setText(out_root)
+            except Exception:
+                pass
+            self._outdir_linked_once = True
+        else:
+            # one-time auto-link based on which field was already set
+            if (self.prep_output_dir.text() or '').strip():
+                self._maybe_link_output_dirs(src='prep')
+            else:
+                self._maybe_link_output_dirs(src='run')
+        try:
+            Path(out_root).mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            QMessageBox.warning(self, 'Error', f'Cannot create output_folder: {e}')
+            return
+
+        prefix = f"mppr_inputs_{time.strftime('%Y%m%d_%H%M%S')}"
+        out_override = str((Path(out_root) / prefix).resolve())
+        try:
+            Path(out_override).mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            QMessageBox.warning(self, 'Error', f'Cannot create output subfolder: {e}')
+            return
+
+        params = {
+            'plink_prefix': plink_prefix,
+            'phenotype_path': pheno_path,
+            'phenotype_sheet': (self.prep_sheet.text() or '').strip(),
+            'phenotype_id_col': (self.prep_id_col.text() or '').strip(),
+            'cross_col': (self.prep_cross_col.text() or '').strip() or 'Family_Inbred_Name',
+            'panel_col': (self.prep_panel_col.text() or '').strip(),
+            'panel_values': (self.prep_panel_values.text() or '').strip(),
+            'iid_key_delim': (self.prep_iid_delim.text() or ':').strip() or ':',
+            'parent_select_mode': (self.prep_parent_pick.currentData() or 'best_callrate'),
+            'genetic_map_path': (self.prep_genmap_path.text() or '').strip(),
+            'genetic_map_sheet': (self.prep_genmap_sheet.text() or '').strip(),
+            'map_merge_mode': (self.prep_map_merge.currentData() or 'marker_then_chr_bp'),
+            'interpolate_missing_cm': bool(self.prep_interp_cm.isChecked()),
+            'out_dir_override': out_override,
+        }
+
+        run_dir = Path(tempfile.mkdtemp(prefix='mppr_prep_run_'))
+        self.append_log(f"[mppR prep] Running plugin={self.PLUGIN_PREP_ID}")
+        self.append_log(f"[mppR prep] work_dir={run_dir}")
+        self.append_log(f"[mppR prep] out_dir_override={out_override}")
+        try:
+            _out_dir = Path(run_plugin(REGISTRY_PATH, self.PLUGIN_PREP_ID, params, run_dir))
+        except Exception as e:
+            self.append_log(f"[mppR prep] ERROR: {e}")
+            out_guess = run_dir / 'out'
+            for name in ['error.txt', 'stdout.txt', 'stderr.txt', 'run.log', 'prep.log']:
+                pp = out_guess / name
+                if pp.exists() and pp.stat().st_size > 0:
+                    self.append_log(f"---- {name} ----")
+                    self.append_log(pp.read_text(encoding='utf-8', errors='ignore'))
+            QMessageBox.critical(self, 'Prepare failed', str(e))
+            return
+
+        art_path = Path(out_override) / 'artifacts.json'
+        if not art_path.exists():
+            art_path = _out_dir / 'artifacts.json'
+
+        arts = {}
+        try:
+            if art_path.exists():
+                arts = json.loads(art_path.read_text(encoding='utf-8', errors='ignore'))
+        except Exception:
+            arts = {}
+
+        def _set_if(k: str, le: QLineEdit):
+            try:
+                v = (arts.get(k) or '').strip() if isinstance(arts, dict) else ''
+            except Exception:
+                v = ''
+            if v:
+                try:
+                    le.setText(v)
+                except Exception:
+                    pass
+
+        _set_if('geno_off_tsv', self.geno_off_tsv)
+        _set_if('geno_par_tsv', self.geno_par_tsv)
+        _set_if('marker_map_tsv', self.map_tsv)
+        _set_if('phenotype_mppr_tsv', self.pheno_tsv)
+        _set_if('cross_ind_tsv', self.cross_ind_tsv)
+        _set_if('par_per_cross_tsv', self.par_per_cross_tsv)
+
+        self.append_log(f"[mppR prep] Done. outputs={out_override}")
+        QMessageBox.information(self, 'OK', f'mppR inputs prepared in: {out_override}')
+    
+    def _maybe_link_output_dirs(self, src: str):
+        """Auto-fill the other output_folder the first time one is chosen."""
+        if getattr(self, '_outdir_linked_once', False):
+            return
+        try:
+            run_dir = (self.output_dir.text() or '').strip()
+            prep_dir = (self.prep_output_dir.text() or '').strip()
+        except Exception:
+            return
+
+        if src == 'run':
+            if run_dir and not prep_dir:
+                try:
+                    self.prep_output_dir.setText(run_dir)
+                except Exception:
+                    pass
+                self._outdir_linked_once = True
+            elif run_dir and prep_dir:
+                self._outdir_linked_once = True
+        else:
+            if prep_dir and not run_dir:
+                try:
+                    self.output_dir.setText(prep_dir)
+                except Exception:
+                    pass
+                self._outdir_linked_once = True
+            elif prep_dir and run_dir:
+                self._outdir_linked_once = True
 
     def _read_artifacts(self, out_dir: Path) -> dict:
         p = out_dir / 'artifacts.json'
@@ -14924,6 +15243,7 @@ class MPPRTab(QWidget):
             'thre_qtl': float(self.thre_qtl.value()),
             'win_qtl': float(self.win_qtl.value()),
             'n_perm': int(self.n_perm.value()),
+            'do_perm': bool(int(self.n_perm.value()) > 0),
             'qval': self.qval.text().strip(),
             'cofactors': self.cofactors.text().strip(),
             'n_cores': int(self.n_cores.value()),
@@ -16180,6 +16500,8 @@ class PreprocessTab(QWidget):
     PLUGIN_SPLIT_MERGE_EXTRACT = "prep_split_merge_extract"
     PLUGIN_SPLIT_GROUPS = "prep_split_groups"
     PLUGIN_MERGE_FILES = "prep_merge_files"
+
+    PLUGIN_MAP_CONVERTER = "prep_map_converter"
     
     PLUGIN_IMPUTE = "impute_genotypes"
     PLUGIN_IMPUTE_PHENO = "impute_phenotypes"
@@ -16285,6 +16607,72 @@ class PreprocessTab(QWidget):
 
         box = QGroupBox("File converter")
         box.setLayout(form)
+
+        # --- Map converter (bp<->cM estimation / format conversion) ---
+        self.mc_output_folder = QLineEdit(); self.mc_output_folder.setPlaceholderText("Select output folder")
+        self.mc_input_kind = QComboBox(); self.mc_input_kind.addItems(["Auto", "marker_map.tsv", "PLINK (.bim/prefix)"])
+        self.mc_input_path = QLineEdit(); self.mc_input_path.setPlaceholderText("Input map: marker_map.tsv/csv/xlsx OR PLINK prefix/.bim")
+
+        self.mc_ref_path = QLineEdit(); self.mc_ref_path.setPlaceholderText("Reference map (bp+cM) file (optional)")
+        self.mc_ref_sheet = QLineEdit(); self.mc_ref_sheet.setPlaceholderText("optional: xlsx sheet (empty=first)")
+        self.mc_ref_auto_cols = QCheckBox("Auto-detect ref columns"); self.mc_ref_auto_cols.setChecked(True)
+        self.mc_ref_chr_col = QLineEdit("chr")
+        self.mc_ref_bp_col = QLineEdit("bp")
+        self.mc_ref_cm_col = QLineEdit("cM")
+
+        self.mc_fit_method = QComboBox()
+        self.mc_fit_method.addItems([
+            "piecewise (Marey; recommended)",
+            "linear_chr (per-chr slope)",
+            "linear_global (global slope)",
+        ])
+        self.mc_enforce_monotone = QComboBox(); self.mc_enforce_monotone.addItems(["TRUE", "FALSE"]); self.mc_enforce_monotone.setCurrentText("TRUE")
+        self.mc_default_slope = QDoubleSpinBox(); self.mc_default_slope.setRange(0.01, 10.0); self.mc_default_slope.setDecimals(3); self.mc_default_slope.setSingleStep(0.05); self.mc_default_slope.setValue(1.0)
+        self.mc_write_bim = QCheckBox("Write PLINK .bim with cM (map_cm.bim)"); self.mc_write_bim.setChecked(False)
+
+        b_mco = QPushButton("Browse"); b_mco.setStyleSheet(GE_BTN_BROWSE_QSS); b_mco.clicked.connect(self.pick_mc_output_folder)
+        b_mci = QPushButton("Browse"); b_mci.setStyleSheet(GE_BTN_BROWSE_QSS); b_mci.clicked.connect(self.pick_mc_input)
+        b_mcr = QPushButton("Browse"); b_mcr.setStyleSheet(GE_BTN_BROWSE_QSS); b_mcr.clicked.connect(self.pick_mc_reference)
+
+        btn_mc_copy = QPushButton("Copy output_folder from File converter")
+        btn_mc_copy.clicked.connect(lambda *a, **k: self.mc_output_folder.setText(self.fc_output_folder.text().strip()))
+
+        self.run_mc_btn = QPushButton("Run")
+        self.run_mc_btn.setStyleSheet(GE_BTN_RUN_QSS)
+        self.run_mc_btn.clicked.connect(lambda *a, **k: self.run_map_converter())
+
+        def _refresh_mc_cols_ui(*args, **kwargs):
+            en = not self.mc_ref_auto_cols.isChecked()
+            self.mc_ref_chr_col.setEnabled(en)
+            self.mc_ref_bp_col.setEnabled(en)
+            self.mc_ref_cm_col.setEnabled(en)
+        self.mc_ref_auto_cols.stateChanged.connect(_refresh_mc_cols_ui)
+        _refresh_mc_cols_ui()
+
+        mc_form = QFormLayout()
+        mc_form.addRow(btn_mc_copy)
+        mc_form.addRow("output_folder", self._hbox(self.mc_output_folder, b_mco))
+        mc_form.addRow("input_kind", self.mc_input_kind)
+        mc_form.addRow("input_map", self._hbox(self.mc_input_path, b_mci))
+        mc_form.addRow("reference_map (bp+cM, opt)", self._hbox(self.mc_ref_path, b_mcr))
+        mc_form.addRow("reference_sheet (xlsx)", self.mc_ref_sheet)
+        mc_form.addRow("ref columns", self.mc_ref_auto_cols)
+        mc_form.addRow("ref_col_names", make_pairs_grid([
+            ("chr", self.mc_ref_chr_col),
+            ("bp", self.mc_ref_bp_col),
+            ("cM", self.mc_ref_cm_col),
+        ], per_row=3))
+        mc_form.addRow("fit", self.mc_fit_method)
+        mc_form.addRow("options", make_pairs_grid([
+            ("monotone", self.mc_enforce_monotone),
+            ("fallback cM/Mb", self.mc_default_slope),
+        ], per_row=2))
+        mc_form.addRow("", self.mc_write_bim)
+        mc_form.addRow(self.run_mc_btn)
+
+        mc_box = QGroupBox("Map converter (estimate cM from bp using reference map)")
+        mc_box.setLayout(mc_form)
+        self.mapconv_box = mc_box
 
         # --- Filtering (QC) ---
         self.flt_mode = QComboBox()
@@ -16829,6 +17217,7 @@ class PreprocessTab(QWidget):
         pp_l.setContentsMargins(0, 0, 0, 0)
         pp_l.setSpacing(8)
         pp_l.addWidget(box)
+        pp_l.addWidget(self.mapconv_box)
         #pp_l.addWidget(cross_section)
         preprocess_page.setLayout(pp_l)
 
@@ -17396,6 +17785,123 @@ class PreprocessTab(QWidget):
         d = QFileDialog.getExistingDirectory(self, "Select output folder")
         if d:
             self.fc_output_folder.setText(d)
+
+    # ---------- Map converter ----------
+    def pick_mc_output_folder(self):
+        d = QFileDialog.getExistingDirectory(self, "Select output folder")
+        if d:
+            try:
+                self.mc_output_folder.setText(d)
+            except Exception:
+                pass
+
+    def pick_mc_input(self):
+        fp, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select input map",
+            "",
+            "Map/PLINK (*.tsv *.txt *.csv *.xlsx *.xls *.bim *.bed);;All (*.*)",
+        )
+        if fp:
+            try:
+                self.mc_input_path.setText(fp)
+            except Exception:
+                pass
+
+    def pick_mc_reference(self):
+        fp, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select reference map (bp+cM)",
+            "",
+            "Map (*.tsv *.txt *.csv *.xlsx *.xls *.bim);;All (*.*)",
+        )
+        if fp:
+            try:
+                self.mc_ref_path.setText(fp)
+            except Exception:
+                pass
+
+    def run_map_converter(self):
+        out_txt = self.mc_output_folder.text().strip()
+        in_txt = self.mc_input_path.text().strip()
+        if not out_txt:
+            QMessageBox.warning(self, "Error", "Please select output_folder")
+            return
+        if not in_txt:
+            QMessageBox.warning(self, "Error", "Please select input_map")
+            return
+        out_dir = Path(out_txt)
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        kind_ui = (self.mc_input_kind.currentText() or "Auto").strip()
+        if kind_ui.startswith("PLINK"):
+            input_kind = "plink"
+        elif kind_ui.lower().startswith("marker"):
+            input_kind = "marker_map"
+        else:
+            input_kind = "auto"
+
+        fit_ui = (self.mc_fit_method.currentText() or "piecewise").strip().lower()
+        if fit_ui.startswith("linear_chr"):
+            fit_method = "linear_chr"
+        elif fit_ui.startswith("linear_global"):
+            fit_method = "linear_global"
+        else:
+            fit_method = "piecewise"
+
+        params = {
+            "out_dir_override": str(out_dir),
+            "input_kind": input_kind,
+            "input_path": in_txt,
+            "reference_map": self.mc_ref_path.text().strip(),
+            "reference_sheet": self.mc_ref_sheet.text().strip(),
+            "ref_auto_cols": bool(self.mc_ref_auto_cols.isChecked()),
+            "ref_chr_col": self.mc_ref_chr_col.text().strip(),
+            "ref_bp_col": self.mc_ref_bp_col.text().strip(),
+            "ref_cm_col": self.mc_ref_cm_col.text().strip(),
+            "fit_method": fit_method,
+            "enforce_monotone": (self.mc_enforce_monotone.currentText() or "TRUE").strip(),
+            "default_cM_per_Mb": float(self.mc_default_slope.value()),
+            "write_plink_bim_cm": bool(self.mc_write_bim.isChecked()),
+        }
+
+        run_dir = Path(tempfile.mkdtemp(prefix="mapconv_run_"))
+        self._log_msg(f"[Map converter] Running plugin={self.PLUGIN_MAP_CONVERTER}")
+        self._log_msg(f"[Map converter] out_dir_override={out_dir}")
+        try:
+            _out = Path(run_plugin(REGISTRY_PATH, self.PLUGIN_MAP_CONVERTER, params, run_dir))
+            published = None
+            try:
+                artp = _out / "artifacts.json"
+                if artp.exists():
+                    art = json.loads(artp.read_text(encoding="utf-8", errors="ignore"))
+                    if isinstance(art, dict):
+                        published = (art.get("published_dir") or "").strip()
+            except Exception:
+                published = None
+
+            show_dir = published or str(out_dir)
+            self._log_msg(f"[Map converter] OK: {Path(show_dir) / 'marker_map.tsv'}")
+            try:
+                QMessageBox.information(self, "OK", f"Map converter finished.\n\nOutput: {show_dir}")
+            except Exception:
+                pass
+        except Exception as e:
+            # enrich with stderr tail
+            tail = ""
+            try:
+                stderr_path = run_dir / "out" / "stderr.txt"
+                if stderr_path.exists():
+                    lines = stderr_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+                    tail = "\n".join(lines[-20:])
+            except Exception:
+                tail = ""
+            msg = str(e)
+            if tail:
+                msg += "\n\n--- stderr tail ---\n" + tail
+            self._log_msg("[ERROR] " + msg)
+            QMessageBox.critical(self, "Error", msg)
+            return
 
     # ---------- Split/Merge/Extract ----------
     def pick_sme_output_folder(self):

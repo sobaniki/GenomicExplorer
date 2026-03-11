@@ -172,21 +172,34 @@ read_pheno_tsv <- function(path, trait) {
   }
 
   if (!(trait %in% names(dt))) {
-    # auto pick first numeric column
+    # auto pick first numeric column, but avoid common metadata columns (especially in NAM phenotypes)
+    meta_cols <- c(
+      "Panel", "panel",
+      "Family_Num", "Family.num", "FamilyNum", "family_num",
+      "Family_Inbred_Name", "family_inbred_name",
+      "Entry_Num", "Entry.num", "EntryNum", "entry_num",
+      "Z_Num", "Z.num", "ZNum", "z_num"
+    )
+    # start with numeric/integer columns
     num_cols <- names(dt)[vapply(dt, function(x) is.numeric(x) || is.integer(x), logical(1))]
+    # if none, try coercion (tolerate '.', 'NA', etc.)
     if (length(num_cols) == 0) {
-      # try coercion
       for (c in names(dt)) dt[[c]] <- suppressWarnings(as.numeric(dt[[c]]))
       num_cols <- names(dt)[vapply(dt, function(x) is.numeric(x) || is.integer(x), logical(1))]
     }
     if (length(num_cols) == 0) stop("trait column not found and no numeric columns detected in pheno TSV")
-    cat("[qtl_mppr] WARN: trait column '", trait, "' not found; using first numeric column '", num_cols[1], "'\n", sep="")
-    trait <- num_cols[1]
+    num_cols2 <- setdiff(num_cols, meta_cols)
+    pick <- if (length(num_cols2) > 0) num_cols2[1] else num_cols[1]
+    cat("[qtl_mppr] WARN: trait column '", trait, "' not found/empty; using numeric column '", pick, "'\n", sep="")
+    trait <- pick
   }
 
   y <- suppressWarnings(as.numeric(dt[[trait]]))
-  ph <- matrix(y, ncol = 1)
-  colnames(ph) <- trait
+
+  # IMPORTANT: some versions of mppR (QC.mppData) choke when pheno is simplified to a vector.
+  # To keep it safely 2D, always provide >=2 phenotype columns for SIM/CIM.
+  ph <- cbind(y, .dummy_keep2d = rep(0, length(y)))
+  colnames(ph)[1] <- trait
   rownames(ph) <- ids
 
   list(pheno = ph, ids = ids, trait = trait, cross_col = attr(dt, "_cross_col"))
@@ -402,6 +415,12 @@ do_perm <- as.logical(p$do_perm %||% FALSE)
 if (is.na(do_perm)) do_perm <- FALSE
 n_perm <- as.integer(p$n_perm %||% 0L)
 if (is.na(n_perm) || n_perm < 0) n_perm <- 0L
+
+# Backward/GUI-friendly behavior:
+# If user specifies n_perm > 0, we should run permutation even when do_perm is missing.
+if (n_perm > 0L && !isTRUE(do_perm)) {
+  do_perm <- TRUE
+}
 q_val <- as.numeric(p$q_val %||% 0.95)
 if (is.na(q_val) || q_val <= 0 || q_val >= 1) q_val <- 0.95
 

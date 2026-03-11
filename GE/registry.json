@@ -377,6 +377,14 @@
       }
     },
     {
+      "id": "prep_map_converter",
+      "path": "./plugins/prep_map_converter",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
       "id": "prep_split_groups",
       "path": "./plugins/prep_split_groups",
       "env": {
@@ -551,6 +559,14 @@
     {
       "id": "qc_filter_plink2",
       "path": "./plugins/qc_filter_plink2",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
+    },
+    {
+      "id": "prep_mppr_inputs",
+      "path": "./plugins/prep_mppr_inputs",
       "env": {
         "mode": "micromamba",
         "name": "GenomicExplorer"
