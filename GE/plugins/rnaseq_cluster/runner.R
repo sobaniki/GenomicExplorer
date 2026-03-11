@@ -4,6 +4,7 @@
 suppressWarnings(suppressMessages({
   library(jsonlite)
   library(data.table)
+  library(mclust)
 }))
 
 fail <- function(msg, code=1) {
