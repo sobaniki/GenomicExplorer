@@ -571,6 +571,14 @@
         "mode": "micromamba",
         "name": "GenomicExplorer"
       }
+    },
+    {
+      "id": "rnaseq_preprocess",
+      "path": "./plugins/rnaseq_preprocess",
+      "env": {
+        "mode": "micromamba",
+        "name": "GenomicExplorer"
+      }
     }
   ]
 }

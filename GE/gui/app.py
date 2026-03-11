@@ -23774,6 +23774,245 @@ class LinkageMapTab(QWidget):
             self.results.clear_plot("map_lengths.png not found")
 
 
+
+
+class RNASeqPreprocessTab(QWidget):
+    PLUGIN_ID = "rnaseq_preprocess"
+
+    def __init__(self, log: QTextEdit, results: ResultsPane):
+        super().__init__()
+        self.log = log
+        self.results = results
+        self.last_out_dir: Optional[Path] = None
+
+        self.input_path = QLineEdit()
+        btn_input = QPushButton("Browse")
+        btn_input.setStyleSheet(GE_BTN_BROWSE_QSS)
+        btn_input.clicked.connect(lambda *args, **kwargs: self._pick_file(self.input_path, "Table (*.tsv *.txt *.csv *.xlsx *.xls);;All (*.*)"))
+
+        self.output_dir = QLineEdit()
+        btn_out = QPushButton("Browse")
+        btn_out.setStyleSheet(GE_BTN_BROWSE_QSS)
+        btn_out.clicked.connect(lambda *args, **kwargs: self.pick_output_dir())
+
+        self.alias_tsv = QLineEdit()
+        btn_alias = QPushButton("Browse")
+        btn_alias.setStyleSheet(GE_BTN_BROWSE_QSS)
+        btn_alias.clicked.connect(lambda *args, **kwargs: self._pick_file(self.alias_tsv, "TSV (*.tsv *.txt);;All (*.*)"))
+
+        # Alias table format / target assembly (useful for MaizeDB genes_to_alias_ids.tsv)
+        self.alias_format = QComboBox()
+        self.alias_format.addItems([
+            "auto",
+            "MaizeDB genes_to_alias_ids.tsv",
+            "Generic (row-wise tokens)",
+        ])
+        self.alias_target_assembly = QComboBox()
+        self.alias_target_assembly.addItems([
+            "auto (from GFF3)",
+            "AGPv3",
+            "AGPv4",
+            "AGPv5",
+        ])
+        # For other crops / custom versioning: allow user to specify a regex that identifies
+        # the *target* gene namespace in the alias table (used only when GFF3 cannot decide).
+        self.custom_target_regex = QLineEdit()
+        self.custom_target_regex.setPlaceholderText("optional: e.g. ^Sobic\\.\\d{3}G\\d+$")
+
+        self.gff3_path = QLineEdit()
+        btn_gff = QPushButton("Browse")
+        btn_gff.setStyleSheet(GE_BTN_BROWSE_QSS)
+        btn_gff.clicked.connect(lambda *args, **kwargs: self._pick_file(self.gff3_path, "GFF3 (*.gff3 *.gff *.gtf);;All (*.*)"))
+
+        self.fasta_path = QLineEdit()
+        btn_fa = QPushButton("Browse")
+        btn_fa.setStyleSheet(GE_BTN_BROWSE_QSS)
+        btn_fa.clicked.connect(lambda *args, **kwargs: self._pick_file(self.fasta_path, "FASTA (*.fa *.fasta *.faa *.fna);;All (*.*)"))
+
+        # Optional: export a representative protein FASTA (1 isoform per gene) for EggNOG-mapper/BLAST
+        self.export_rep_fasta = QCheckBox("Export FASTA")
+        self.export_rep_fasta.setChecked(False)
+        self.isoform_mode = QComboBox()
+        self.isoform_mode.addItems(["gff_longest", "longest", "first"])
+        self.fasta_header_mode = QComboBox()
+        self.fasta_header_mode.addItems(["gene", "gene|transcript", "gene_meta"])
+
+        self.sheet_name = QLineEdit()
+        self.orientation = QComboBox()
+        self.orientation.addItems(["auto", "samples_rows", "genes_rows"])
+        self.sample_id_col = QLineEdit("OrigColNameFromRNAExpressionValue_RNA_TaxaName")
+        self.metadata_cols = QSpinBox()
+        self.metadata_cols.setRange(0, 9999)
+        self.metadata_cols.setValue(0)
+        self.metadata_cols.setSpecialValueText("auto")
+        self.target_gene_id = QComboBox()
+        # Target gene ID namespace for downstream integration (recommended: GFF3 gene Name)
+        self.target_gene_id.addItems(["gff_gene_name", "auto", "normalized", "original"])
+        self.gff_gene_field = QComboBox()
+        self.gff_gene_field.addItems(["Name", "ID"])
+
+        self.strip_isoform = QCheckBox("Strip transcript suffix")
+        self.strip_isoform.setChecked(True)
+        self.strip_version = QCheckBox("Strip version suffix")
+        self.strip_version.setChecked(True)
+        self.drop_duplicate_genes = QCheckBox("Sum duplicated genes")
+        self.drop_duplicate_genes.setChecked(True)
+        self.force_integer = QCheckBox("Round counts to integer")
+        self.force_integer.setChecked(True)
+
+        self.btn_run = QPushButton("Run")
+        self.btn_run.setStyleSheet(GE_BTN_RUN_QSS)
+        self.btn_run.clicked.connect(lambda *args, **kwargs: self.run_preprocess())
+
+        form = QFormLayout()
+        row = QHBoxLayout(); row.addWidget(self.output_dir); row.addWidget(btn_out)
+        w = QWidget(); w.setLayout(row); form.addRow("output_folder", w)
+        row = QHBoxLayout(); row.addWidget(self.input_path); row.addWidget(btn_input)
+        w = QWidget(); w.setLayout(row); form.addRow("Expression table", w)
+        row = QHBoxLayout(); row.addWidget(self.alias_tsv); row.addWidget(btn_alias)
+        w = QWidget(); w.setLayout(row); form.addRow("Gene alias table", w)
+        row = QHBoxLayout(); row.addWidget(QLabel("format")); row.addWidget(self.alias_format); row.addSpacing(12); row.addWidget(QLabel("target")); row.addWidget(self.alias_target_assembly)
+        w = QWidget(); w.setLayout(row); form.addRow(w)
+        row = QHBoxLayout(); row.addWidget(self.gff3_path); row.addWidget(btn_gff)
+        w = QWidget(); w.setLayout(row); form.addRow("GFF3 (opt)", w)
+        row = QHBoxLayout(); row.addWidget(self.fasta_path); row.addWidget(btn_fa)
+        w = QWidget(); w.setLayout(row); form.addRow("FASTA (opt)", w)
+        row = QHBoxLayout(); row.addWidget(self.export_rep_fasta); row.addSpacing(12); row.addWidget(QLabel("isoform")); row.addWidget(self.isoform_mode); row.addSpacing(12); row.addWidget(QLabel("header")); row.addWidget(self.fasta_header_mode)
+        w = QWidget(); w.setLayout(row); form.addRow(w)
+        form.addRow(self.btn_run)
+
+        row = QHBoxLayout(); row.addWidget(QLabel("Sheet")); row.addWidget(self.sheet_name); row.addSpacing(12); row.addWidget(QLabel("Orientation")); row.addWidget(self.orientation)
+        w = QWidget(); w.setLayout(row); form.addRow("Input hints", w)
+        row = QHBoxLayout(); row.addWidget(QLabel("sample_id")); row.addWidget(self.sample_id_col); row.addSpacing(12); row.addWidget(QLabel("metadata cols")); row.addWidget(self.metadata_cols)
+        w = QWidget(); w.setLayout(row); form.addRow(w)
+        row = QHBoxLayout(); row.addWidget(QLabel("Target")); row.addWidget(self.target_gene_id); row.addSpacing(12); row.addWidget(QLabel("GFF field")); row.addWidget(self.gff_gene_field); row.addSpacing(12); row.addWidget(self.strip_isoform); row.addWidget(self.strip_version)
+        w = QWidget(); w.setLayout(row); form.addRow(w)
+        row = QHBoxLayout(); row.addWidget(QLabel("Custom target regex")); row.addWidget(self.custom_target_regex)
+        w = QWidget(); w.setLayout(row); form.addRow("Advanced", w)
+        row = QHBoxLayout(); row.addWidget(self.drop_duplicate_genes); row.addSpacing(12); row.addWidget(self.force_integer)
+        w = QWidget(); w.setLayout(row); form.addRow("Counts", w)
+
+        tip = QLabel(
+            "Purpose: semi-automatic RNA-seq preprocessing. It can split embedded sample metadata into design.tsv, transpose sample×gene tables into gene×sample counts.tsv, and harmonize gene IDs (recommended: align to GFF3 gene Name).\n\n"
+            "Alias tables: auto-detect or explicitly choose MaizeDB genes_to_alias_ids.tsv (AGPv3/4/5 relations often appear on separate rows; the tool groups by primary ID and can map across versions). You can also specify the target assembly (AGPv3/4/5) for MaizeDB-style tables (especially useful when GFF3 is not provided). For other crops, you may set a custom target-regex to indicate the desired gene namespace in the alias table.\n\n"
+            "Optionally, it can export a representative protein FASTA (1 isoform per gene) for EggNOG-mapper/BLAST."
+        )
+        tip.setWordWrap(True)
+        tip.setStyleSheet("color:#555;")
+
+        box = QGroupBox("RNA-seq Preprocess")
+        layb = QVBoxLayout()
+        #layb.addWidget(tip)
+        layb.addLayout(form)
+        box.setLayout(layb)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        inner = QWidget()
+        lay = QVBoxLayout()
+        lay.addWidget(box)
+        #lay.addStretch(1)
+        inner.setLayout(lay)
+        scroll.setWidget(inner)
+
+        root = QVBoxLayout()
+        root.addWidget(scroll)
+        self.setLayout(root)
+
+    def append_log(self, msg: str):
+        self.log.append(msg)
+
+    def _pick_file(self, lineedit: QLineEdit, filt: str):
+        fp, _ = QFileDialog.getOpenFileName(self, "Select file", "", filt)
+        if fp:
+            lineedit.setText(fp)
+
+    def pick_output_dir(self):
+        d = QFileDialog.getExistingDirectory(self, "Select output folder")
+        if d:
+            try:
+                Path(d).mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+            self.output_dir.setText(d)
+
+    def run_preprocess(self):
+        input_path = self.input_path.text().strip()
+        if not input_path or not Path(input_path).exists():
+            QMessageBox.warning(self, 'Error', 'Expression table not set / not found')
+            return
+
+        params = {
+            'input_path': input_path,
+            'sheet_name': self.sheet_name.text().strip(),
+            'orientation': self.orientation.currentText(),
+            'sample_id_col': self.sample_id_col.text().strip(),
+            'metadata_cols': int(self.metadata_cols.value()),
+            'alias_tsv': self.alias_tsv.text().strip(),
+            'alias_format': self.alias_format.currentText(),
+            'alias_target_assembly': self.alias_target_assembly.currentText(),
+            'custom_target_regex': self.custom_target_regex.text().strip(),
+            'gff3_path': self.gff3_path.text().strip(),
+            'fasta_path': self.fasta_path.text().strip(),
+            'export_rep_fasta': bool(self.export_rep_fasta.isChecked()),
+            'isoform_mode': self.isoform_mode.currentText(),
+            'fasta_header_mode': self.fasta_header_mode.currentText(),
+            'target_gene_id': self.target_gene_id.currentText(),
+            'gff_gene_field': self.gff_gene_field.currentText(),
+            'strip_isoform': bool(self.strip_isoform.isChecked()),
+            'strip_version': bool(self.strip_version.isChecked()),
+            'sum_duplicate_genes': bool(self.drop_duplicate_genes.isChecked()),
+            'force_integer': bool(self.force_integer.isChecked()),
+        }
+
+        out_root = self.output_dir.text().strip() if hasattr(self, 'output_dir') else ''
+        if out_root:
+            try:
+                Path(out_root).mkdir(parents=True, exist_ok=True)
+                params['export_dir'] = out_root
+            except Exception as e:
+                QMessageBox.warning(self, 'Error', f"Cannot create output_folder: {e}")
+                return
+
+        run_dir = Path(tempfile.mkdtemp(prefix='rnaseq_preprocess_'))
+        self.append_log(f"Running plugin={self.PLUGIN_ID}")
+        self.append_log(f"work_dir={run_dir}")
+        try:
+            out_dir = run_plugin(REGISTRY_PATH, self.PLUGIN_ID, params, run_dir)
+        except Exception as e:
+            self.append_log(f"[ERROR] {e}")
+            out_guess = run_dir / 'out'
+            for name in ['error.txt', 'stdout.txt', 'stderr.txt', 'run.log']:
+                pp = out_guess / name
+                if pp.exists() and pp.stat().st_size > 0:
+                    self.append_log(f"---- {name} ----")
+                    self.append_log(pp.read_text(encoding='utf-8', errors='ignore'))
+            QMessageBox.critical(self, 'Run failed', str(e))
+            return
+
+        self.last_out_dir = Path(out_dir)
+        self.append_log(f"Done. out_dir={out_dir}")
+        try:
+            if (Path(out_dir) / 'design.tsv').exists():
+                self.results.load_table(Path(out_dir) / 'design.tsv')
+        except Exception:
+            pass
+        try:
+            if (Path(out_dir) / 'summary.tsv').exists():
+                self.results.load_table(Path(out_dir) / 'summary.tsv')
+        except Exception:
+            pass
+        msg = (
+            "Generated:\n"
+            "- counts.tsv\n"
+            "- design.tsv\n"
+            "- gene_id_map.tsv\n"
+            "- summary.tsv\n- proteins_rep.fa (optional)\n\n"
+            "Set RNA-seq DEG input to counts.tsv + design.tsv for downstream analysis."
+        )
+        QMessageBox.information(self, 'RNA-seq Preprocess', msg)
+
+
 class RNASeqTab(QWidget):
     PLUGIN_ID = "rnaseq_deg"
 
@@ -29240,6 +29479,7 @@ class RNASeqHub(QWidget):
     def __init__(self, log: QTextEdit, results: ResultsPane):
         super().__init__()
         tabs = QTabWidget()
+        tabs.addTab(RNASeqPreprocessTab(log, results), "Preprocess")
         tabs.addTab(RNASeqTab(log, results), "DEG")
         tabs.addTab(RNASeqClusterTab(log, results), "Cluster/DimRed")
         tabs.addTab(RNASeqGeneModelTab(log, results), "GeneClust")
