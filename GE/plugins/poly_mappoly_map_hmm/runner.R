@@ -1,5 +1,6 @@
 suppressWarnings(suppressMessages({
   if (!requireNamespace("jsonlite", quietly=TRUE)) stop("jsonlite is required")
+  library(mappoly)
 }))
 
 args <- commandArgs(trailingOnly=TRUE)
@@ -39,7 +40,6 @@ if (!requireNamespace("mappoly", quietly=TRUE)) {
   write_error(msg); write_artifacts(list(module="poly_mappoly_map_hmm", error=msg)); quit(status=1)
 }
 
-#dat2 <- readRDS("/tmp/poly_mappoly_import_47ysk20g/out/mappoly_data.rds")
 mappoly_data_rds <- as.character(params$mappoly_data_rds %||% "")
 dat2 <- readRDS(mappoly_data_rds)
 
@@ -48,14 +48,14 @@ ncpus <- as.integer(params$ncpus %||% 1)
 start_set <- as.integer(params$start_set %||% 4)
 thres_twopt <- as.numeric(params$thres_twopt %||% 5)
 thres_hmm <- as.numeric(params$thres_hmm %||% 50)
-extend_tail <- as.integer(params$extend_tail %||% 50)
+extend_tail <- as.integer(params$extend_tail %||% NULL)
 info_tail <- isTRUE(params$info_tail %||% TRUE)
-sub_map_size_diff_limit <- as.integer(params$sub_map_size_diff_limit %||% 5)
+sub_map_size_diff_limit <- as.integer(params$sub_map_size_diff_limit %||% Inf)
 phase_number_limit <- as.integer(params$phase_number_limit %||% 20)
-tol <- as.numeric(params$tol %||% 1e-2)
-tol_final <- as.numeric(params$tol_final %||% 1e-4)
-update_global_error <- isTRUE(params$update_global_error %||% FALSE)
-global_error <- as.numeric(params$global_error %||% 0.05)
+tol <- as.numeric(params$tol %||% 0.1)
+tol_final <- as.numeric(params$tol_final %||% 0.001)
+update_global_error <- isTRUE(params$update_global_error %||% T)
+global_error <- as.numeric(params$global_error %||% 0.1)
 
 if (!nzchar(order_rds) || !file.exists(order_rds)) {
   msg <- paste0("order_rds not found: ", order_rds)
@@ -89,20 +89,20 @@ for (nm in names(ord)) {
 
   mp <- mappoly::est_rf_hmm_sequential(
     input.seq = s,
-    start.set = start_set,
-    thres.twopt = thres_twopt,
-    thres.hmm = thres_hmm,
-    extend.tail = extend_tail,
-    info.tail = info_tail,
     twopt = tpt1,
-    sub.map.size.diff.limit = sub_map_size_diff_limit,
-    phase.number.limit = phase_number_limit,
-    reestimate.single.ph.configuration = TRUE,
-    tol = tol,
-    tol.final = tol_final,
-    verbose = TRUE,
-    detailed.verbose = FALSE,
-    high.prec = FALSE
+    # start.set = start_set,
+    # thres.twopt = thres_twopt,
+    # thres.hmm = thres_hmm,
+    # extend.tail = extend_tail,
+    # phase.number.limit = phase_number_limit,
+    # sub.map.size.diff.limit = sub_map_size_diff_limit,
+    # info.tail = info_tail,
+    # reestimate.single.ph.configuration = F,
+    # tol = tol,
+    # tol.final = tol_final,
+    # verbose = TRUE,
+    # detailed.verbose = FALSE,
+    # high.prec = FALSE
   )
 
   mp_up <- NULL

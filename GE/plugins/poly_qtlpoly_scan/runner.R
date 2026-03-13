@@ -1,5 +1,6 @@
 suppressWarnings(suppressMessages({
   if (!requireNamespace("jsonlite", quietly = TRUE)) stop("jsonlite is required")
+  library(qtlpoly)
 }))
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -320,9 +321,20 @@ score_null <- NULL
 if (threshold_mode %in% c("resampling_genomewide", "resampling_pointwise")) {
   log("Computing score.null via simulate_qtl + null_model: n_sim=", n_sim, ", seed=", seed)
   set.seed(seed)
-  sim <- qtlpoly::simulate_qtl(data = data_obj, mu = 0, h2.qtl = NULL, var.error = 1,
-                               n.sim = n_sim, missing = TRUE, seed = seed)
+  sim <- qtlpoly::simulate_qtl(data = data_obj, 
+                               mu = 0, 
+                               h2.qtl = NULL, 
+                               var.error = 1,
+                               n.sim = n_sim, 
+                               missing = TRUE, 
+                               seed = seed)
   score_null <- qtlpoly::null_model(data = sim$results)
+  # score_null <- qtlpoly::null_model(data = data_obj,
+  #                                   offset.data = NULL,
+  #                                   pheno.col = pheno_col_idx,
+  #                                   n.clusters = n_cores,
+  #                                   plot = "null",
+  #                                   verbose = T)
 }
 
 # If requested, derive pointwise thresholds from score.null (min p-value quantiles)
@@ -355,19 +367,21 @@ if (use_score_null) {
   sig_bwd <- alpha_bwd
 }
 
-
-
 # Run REMIM
 log("Running remim")
 remim_mod <- qtlpoly::remim(
   data = data_obj,
   pheno.col = pheno_col_idx,
   w.size = w_size,
-  score.null = if (use_score_null) score_null else NULL,
   sig.fwd = sig_fwd,
   sig.bwd = sig_bwd,
+  score.null = if (use_score_null) score_null else NULL,
   d.sint = d_sint,
-  n.clusters = n_cores
+  polygenes = F,
+  n.clusters = n_cores,
+  n.rounds = Inf,
+  plot = "remim",
+  verbose = T
 )
 
 saveRDS(remim_mod, file.path(out_dir, "remim_model.rds"))

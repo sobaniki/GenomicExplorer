@@ -71,7 +71,6 @@ if (is.character(lg_id) && lg_id == "all") {
   lg_ids <- as.integer(lg_id)
 }
 
-#dat2 <- readRDS("/tmp/poly_mappoly_import_47ysk20g/out/mappoly_data.rds")
 mappoly_data_rds <- as.character(params$mappoly_data_rds %||% "")
 dat2 <- readRDS(mappoly_data_rds)
 

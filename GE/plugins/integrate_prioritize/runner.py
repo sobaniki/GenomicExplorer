@@ -535,7 +535,7 @@ def read_genes_from_gff(path: Path, source: str, normalize_chr: bool) -> List[Ge
             if not chr_:
                 continue
             ad = _parse_gff_attrs(attrs)
-            gid = ad.get("ID") or ad.get("gene_id") or ad.get("Name") or ad.get("gene") or ad.get("locus_tag")
+            gid = ad.get("Name") or ad.get("ID") or ad.get("gene_id") or ad.get("gene") or ad.get("locus_tag")
             if not gid:
                 # try Parent for some GFFs
                 gid = ad.get("Parent") or ""

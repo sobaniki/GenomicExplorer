@@ -53,8 +53,6 @@ if (!nzchar(seq_rds) || !file.exists(seq_rds)) {
 seq_init <- readRDS(seq_rds)
 log("est_pairwise_rf2 ncpus=", ncpus)
 
-#dat2 <- readRDS("/tmp/poly_mappoly_import_47ysk20g/out/mappoly_data.rds")
-#seq_final_rds <- file.path(out_dir, "mappoly_seq_final.rds")
 mappoly_data_rds <- as.character(params$mappoly_data_rds %||% "")
 dat2 <- readRDS(mappoly_data_rds)
 
@@ -70,12 +68,6 @@ rfmat <- mappoly::rf_list_to_matrix(input.twopt = tpt,
                                     ncpus = ncpus,
                                     shared.alleles = F,
                                     verbose = verbose)
-# g <- mappoly::group_mappoly(input.mat = rfmat, 
-#                             expected.groups = expected_groups,
-#                             inter = F,
-#                             comp.mat = TRUE,
-#                             LODweight = F,
-#                             verbose = verbose)
 
 # save
 out_files <- list()
@@ -87,10 +79,6 @@ out_files$mappoly_twopt_rds <- basename(tpt_rds)
 rf_rds <- file.path(out_dir, "mappoly_rf_matrix.rds")
 saveRDS(rfmat, rf_rds)
 out_files$mappoly_rf_matrix_rds <- basename(rf_rds)
-
-# gr_rds <- file.path(out_dir, "mappoly_group.rds")
-# saveRDS(g, gr_rds)
-# out_files$mappoly_group_rds <- basename(gr_rds)
 
 # optional simple plot
 png(file.path(out_dir, "rf_matrix.png"), width=1200, height=1000)

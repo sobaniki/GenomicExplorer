@@ -53,7 +53,7 @@ m <- readRDS(rf_matrix_rds)
 
 if (!is.null(expected_groups)) expected_groups <- as.integer(expected_groups)
 log("group_mappoly expected_groups=", ifelse(is.null(expected_groups), "NULL", expected_groups), ", comp.mat=", comp_mat)
-#dat2 <- readRDS("/tmp/poly_mappoly_import_47ysk20g/out/mappoly_data.rds")
+
 mappoly_data_rds <- as.character(params$mappoly_data_rds %||% "")
 dat2 <- readRDS(mappoly_data_rds)
 

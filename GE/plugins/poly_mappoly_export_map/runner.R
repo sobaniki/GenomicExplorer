@@ -71,6 +71,42 @@ if (isTRUE(export_csv)) {
     try(mappoly::export_map_list(mp, file = csvf), silent=TRUE)
   }
   out_files$maps_csv_dir <- "maps_csv"
+  
+  map_files <- list.files(path = file.path(out_dir, "maps_csv"),
+                          pattern = "*.csv",
+                          full.names = T)
+  map_markers <- c()
+  map_lengths <- c()
+  for (cyc1 in 1:length(map_files)) {
+    obj <- data.table::fread(map_files[[cyc1]],
+                             header = T,
+                             data.table = F)
+    map_markers <- rbind(map_markers,
+                         obj)
+    
+    map_lengths <- rbind(map_lengths,
+                         data.frame(chr = obj[1, 3],
+                                    n_markers = nrow(obj),
+                                    length_cM = max(obj[, 7])
+))
+  }
+  map_markers_out <- data.frame(chr = map_markers[, 3],
+                                marker = map_markers[, 1],
+                                cM = map_markers[, 7])
+  data.table::fwrite(as.data.frame(map_markers_out),
+                     file.path(out_dir, "map_markers.tsv"),
+                     quote = F,
+                     sep = "\t",
+                     na = "NA",
+                     row.names = F,
+                     col.names = T)
+  data.table::fwrite(as.data.frame(map_lengths),
+                     file.path(out_dir, "map_lengths.tsv"),
+                     quote = F,
+                     sep = "\t",
+                     na = "NA",
+                     row.names = F,
+                     col.names = T)
 }
 
 # Optional: export to qtlpoly object (per LG)
@@ -95,12 +131,43 @@ if (isTRUE(export_qtlpoly)) {
 
 maps2 <- c()
 for (cyc1 in 1:length(maps)) {
+  obj <- maps[[cyc1]]
+  mp <- if (isTRUE(use_updated) && !is.null(obj$map_updated)) obj$map_updated else obj$map
   maps2 <- c(maps2,
-             list(maps[[cyc1]]$map))
+             list(mp))
 }
-g1_all <- lapply(maps2, mappoly::calc_genoprob)
-qtlall_rds <- file.path(out_dir, "qtlpolyall_export.rds")
+#g1_all <- lapply(maps2, mappoly::calc_genoprob)
+g1_all <- lapply(maps2, 
+                 mappoly::calc_genoprob_error,
+                 step = step,
+                 phase.config = "best",
+                 error = error,
+                 th.prob = 0.95,
+                 restricted = T,
+                 verbose = F)
+qtlall_rds <- file.path(out_dir, "qtlpoly_export_complete.rds")
 saveRDS(g1_all, qtlall_rds)
+
+# # Optional: export to qtlpoly object (per LG)
+# if (isTRUE(export_qtlpoly)) {
+#   qtl_list3 <- list()
+#   for (nm in names(maps)) {
+#     obj <- maps[[nm]]
+#     mp <- if (isTRUE(use_updated) && !is.null(obj$map_updated)) obj$map_updated else obj$map
+#     g3 <- mappoly::calc_genoprob_error(mp, 
+#                                        step = step,
+#                                        phase.config = "best",
+#                                        error = error,
+#                                        th.prob = 0.95,
+#                                        restricted = TRUE,
+#                                        verbose = TRUE)
+#     qtl_list[[nm]] <- mappoly::export_qtlpoly(g3)
+#     #qtl_list[[nm]] <- g3
+#   }
+#   qtl_rds3 <- file.path(out_dir, "qtlpoly_export3.rds")
+#   saveRDS(qtl_list3, qtl_rds3)
+#   out_files$qtlpoly_export_rds3 <- basename(qtl_rds3)
+# }
 
 # Summary list of exported files
 summary_tsv <- file.path(out_dir, "export_summary.tsv")

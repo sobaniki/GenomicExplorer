@@ -822,9 +822,74 @@ if (isTRUE(export_qtl2)) {
   }
   writeLines(yaml_lines, file.path(qtl2_dir, "cross2.yaml"))
 }
+
 asf <- function(x) {
   as.numeric(factor(x))
 }
+
+if (isTRUE(export_rqtl)) {
+  rqtl_dir <- file.path(dataset_dir, "rqtl")
+  dir.create(rqtl_dir, recursive=TRUE, showWarnings=FALSE)
+  
+  # Convert 0/1/2 dosage to R/qtl codes: 1=AA, 2=AB, 3=BB
+  Xcode <- geno_mat
+  
+  Xcode2 <- matrix(NA, nrow=nrow(Xcode), ncol=ncol(Xcode))
+  Xcode2[!is.na(Xcode) & Xcode==0] <- "AA"
+  Xcode2[!is.na(Xcode) & Xcode==1] <- "AB"
+  Xcode2[!is.na(Xcode) & Xcode==2] <- "BB"
+  
+  rownames(Xcode2) <- sample_id
+  colnames(Xcode2) <- map_dt$marker_id
+  
+  ct <- tolower(if (toupper(pop_type) == "F2") "f2" else if (toupper(pop_type) == "BC") "bc" else "riself")
+  if (toupper(pop_type) %in% c("MAGIC", "NAM")) {
+    cat("[simulate_dataset] NOTE: r/qtl export for ", 
+        toupper(pop_type), 
+        " uses cross type 'riself' and family as covariate.\n")
+  }
+  
+  # Split markers by chr and build geno list
+  idx_by_chr <- split(seq_len(nrow(map_dt)), 
+                      map_dt$chr)
+  geno_list <- list()
+  if (toupper(pop_type) == "F2") {
+    genotypes = c("AA", "AB", "BB")
+  } else {
+    genotypes = c("AA", "BB")
+  }
+  for (cc in names(idx_by_chr)) {
+    idx <- idx_by_chr[[cc]]
+    mk <- map_dt$marker_id[idx]
+    o <- order(map_dt$pos_cM[idx])
+    mk <- mk[o]
+    submat <- Xcode2[, mk, drop=FALSE]
+    geno_list[[as.character(cc)]] <- list(
+      data = apply(submat, 2, asf),
+      data = submat,
+      map = setNames(as.numeric(map_dt$pos_cM[idx][o]), mk),
+      alleles = c("A", "B"),
+      genotypes = genotypes
+    )
+  }
+  
+  ph <- as.data.frame(pheno_dt)
+  ph$family <- covar_dt$family[match(ph$sample_id, covar_dt$id)]
+  rownames(ph) <- ph$sample_id
+  
+  cross <- list(pheno=ph, geno=geno_list)
+  class(cross) <- c(ct, "cross")
+  
+  saveRDS(cross, file.path(rqtl_dir, "cross.rds"))
+  save(cross, file=file.path(rqtl_dir, "cross.RData"))
+  
+  if (ct == "f2") {
+    cross_asmap <- cross
+    class(cross_asmap) <- c("bcsft", "cross")
+    saveRDS(cross_asmap, file.path(rqtl_dir, "cross.asmap.rds"))
+  }
+}
+
 if (isTRUE(export_rqtl)) {
   rqtl_dir <- file.path(dataset_dir, "rqtl")
   dir.create(rqtl_dir, recursive=TRUE, showWarnings=FALSE)
@@ -862,7 +927,10 @@ if (isTRUE(export_rqtl)) {
     #Xcode2[!is.na(Xcode) & Xcode==0] <- "1"
     #Xcode2[!is.na(Xcode) & Xcode==1] <- "2"
     #Xcode2[!is.na(Xcode) & Xcode==2] <- "3"
-    rownames(Xcode2) <- sample_id
+    #stop("!")
+    #rownames(Xcode2) <- sample_id
+    rownames(Xcode2) <- merge_id[3:length(merge_id)]
+    #stop("!")
     colnames(Xcode2) <- map_dt$marker_id
 
     ct <- tolower(if (toupper(pop_type) == "F2") "f2" else if (toupper(pop_type) == "BC") "bc" else "riself")
@@ -904,8 +972,8 @@ if (isTRUE(export_rqtl)) {
     cross <- list(pheno=ph, geno=geno_list)
     class(cross) <- c(ct, "cross")
 
-    saveRDS(cross, file.path(rqtl_dir, "cross.rds"))
-    save(cross, file=file.path(rqtl_dir, "cross.RData"))
+    saveRDS(cross, file.path(rqtl_dir, "cross_with_parents.rds"))
+    save(cross, file=file.path(rqtl_dir, "cross_with_parents.RData"))
     
     # if (ct == "f2") {
     #   cross_asmap <- cross
@@ -931,7 +999,7 @@ if (isTRUE(export_rqtl)) {
     }
   }
 }
-
+#stop("!")
 # Polyploid outputs (Updog depth + truth dosage)
 dosage_mat <- geno_mat
 if (isTRUE(generate_polyploid_depth)) {

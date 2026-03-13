@@ -187,25 +187,6 @@ ans <- GWASpoly::GWASpoly(data = obj,
 # -----------------------
 # Collect results
 # -----------------------
-# GWASpoly stores results in slot @GWAS or list; we try a few common locations.
-# get_model_table <- function(o, model) {
-#   # try known accessors
-#   if (!is.null(o@GWAS)) {
-#     if (!is.null(o@GWAS[[model]])) return(o@GWAS[[model]])
-#   }
-#   # sometimes stored as list element
-#   if (!is.null(o$GWAS)) {
-#     if (!is.null(o$GWAS[[model]])) return(o$GWAS[[model]])
-#   }
-#   if (!is.null(o$GWASpoly.results)) {
-#     if (!is.null(o$GWASpoly.results[[model]])) return(o$GWASpoly.results[[model]])
-#   }
-#   if (!is.null(o@GWASpoly.results)) {
-#     if (!is.null(o@GWASpoly.results[[model]])) return(o@GWASpoly.results[[model]])
-#   }
-#   NULL
-# }
-
 res_list <- list()
 for (m in models) {
   tbl <- data.frame(ans@map[, 1:3],
@@ -228,7 +209,7 @@ for (m in models) {
     model = m,
     chr = as.character(dt[[ccol[1]]]),
     pos = as.numeric(dt[[ppos[1]]]),
-    pvalue = as.numeric(dt[[pcol[1]]])
+    pvalue = 10 ^ -(as.numeric(dt[[pcol[1]]]))
   )
   res_list[[m]] <- out
 }

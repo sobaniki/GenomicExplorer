@@ -29474,18 +29474,249 @@ class IntegrateTab(QWidget):
             QMessageBox.warning(self, "Failed", str(e))
 
 
+
+
+class RNASeqDrawTab(QWidget):
+    """Re-draw RNA-seq plots from an existing output folder (no re-run).
+
+    Supported modules
+    -----------------
+    - DEG
+    - Cluster/DimRed
+    - GeneClust
+    - Enrichment
+
+    The tab restores the corresponding ResultsPane RNA-seq context so the
+    common RNA-seq Style/Export panel can rebuild Plotly figures from saved
+    outputs, consistent with other analysis hubs that provide a Draw tab.
+    """
+
+    def __init__(self, log: QTextEdit, results: ResultsPane):
+        super().__init__()
+        self.log = log
+        self.results = results
+        self.last_out_dir: Optional[Path] = None
+
+        self.draw_out_dir = QLineEdit()
+        self.draw_out_dir.setPlaceholderText("Select an existing RNA-seq output folder")
+        btn_out = QPushButton("Browse")
+        btn_out.setStyleSheet(GE_BTN_BROWSE_QSS)
+        btn_out.clicked.connect(lambda *a, **k: self.pick_output_dir())
+
+        self.draw_kind = QComboBox()
+        self.draw_kind.addItems(["Auto", "DEG", "Cluster/DimRed", "GeneClust", "Enrichment"])
+
+        self.draw_title = QLineEdit()
+        self.draw_title.setPlaceholderText("Optional plot title (leave empty for default)")
+
+        self.btn_draw = QPushButton("Draw")
+        self.btn_draw.setStyleSheet(GE_BTN_RUN_QSS)
+        self.btn_draw.clicked.connect(lambda *a, **k: self.draw_from_out_dir())
+
+        form = QFormLayout()
+        form.addRow("output_folder", self._hbox(self.draw_out_dir, btn_out))
+        form.addRow("module", self.draw_kind)
+        form.addRow("title (optional)", self.draw_title)
+
+        gb = QGroupBox("Draw from existing RNA-seq outputs")
+        v = QVBoxLayout()
+        v.addLayout(form)
+        v.addWidget(self.btn_draw)
+        gb.setLayout(v)
+
+        lay = QVBoxLayout()
+        lay.addWidget(gb)
+        lay.addStretch(1)
+        self.setLayout(lay)
+
+    def _hbox(self, le: QLineEdit, btn: QPushButton) -> QWidget:
+        w = QWidget()
+        h = QHBoxLayout()
+        h.setContentsMargins(0, 0, 0, 0)
+        h.addWidget(le)
+        h.addWidget(btn)
+        w.setLayout(h)
+        return w
+
+    def append_log(self, s: str):
+        try:
+            self.log.append(s)
+        except Exception:
+            pass
+
+    def pick_output_dir(self):
+        d = QFileDialog.getExistingDirectory(self, "Select RNA-seq output folder", self.draw_out_dir.text().strip() or "")
+        if d:
+            self.draw_out_dir.setText(d)
+
+    def _default_title(self, kind: str) -> str:
+        k = (kind or "").strip()
+        mapping = {
+            "DEG": "RNA-seq DEG",
+            "Cluster/DimRed": "RNA-seq Cluster/DimRed",
+            "GeneClust": "RNA-seq GeneClust (Model)",
+            "Enrichment": "RNA-seq Enrichment",
+        }
+        return mapping.get(k, "RNA-seq")
+
+    def _infer_kind(self, out_dir: Path) -> str:
+        # Prefer explicit / unique RNA-seq outputs.
+        if (out_dir / "deg.tsv").exists():
+            return "DEG"
+        if (out_dir / "gene_embedding.tsv").exists() or (out_dir / "cluster_profiles.tsv").exists() or (out_dir / "gene_clusters.tsv").exists():
+            return "GeneClust"
+        if (out_dir / "sample_embedding.tsv").exists() or (out_dir / "sample_clusters.tsv").exists():
+            return "Cluster/DimRed"
+
+        art = out_dir / "artifacts.json"
+        if art.exists():
+            try:
+                data = json.loads(art.read_text(encoding="utf-8", errors="ignore"))
+            except Exception:
+                data = None
+
+            try:
+                if isinstance(data, dict):
+                    # DEG artifacts: flat dict with deg_tsv / volcano_plot / ma_plot
+                    if any(str(k) in data for k in ["deg_tsv", "deg_list", "volcano_plot", "ma_plot"]):
+                        return "DEG"
+                    # Enrichment artifacts: {artifacts: {...}}
+                    art2 = data.get("artifacts")
+                    if isinstance(art2, dict) and len(art2) > 0:
+                        return "Enrichment"
+                    # Cluster artifacts: {files: {... sample_embedding/sample_clusters ...}}
+                    files = data.get("files")
+                    if isinstance(files, dict):
+                        if any(str(k) in files for k in ["sample_embedding", "sample_clusters", "hvg", "pca_variance"]):
+                            return "Cluster/DimRed"
+                    # GeneClust artifacts: outputs / gene_lists / selected_g etc.
+                    if any(str(k) in data for k in ["selected_g", "gene_lists", "outputs"]):
+                        return "GeneClust"
+            except Exception:
+                pass
+
+        # Best-effort enrichment fallback from common table names.
+        enrich_globs = [
+            "*enrich*.tsv", "*enrich*.csv",
+            "*goseq*.tsv", "*goseq*.csv",
+            "*topgo*.tsv", "*topgo*.csv",
+            "*clusterprofiler*.tsv", "*clusterprofiler*.csv",
+            "go_*.tsv", "go_*.csv",
+        ]
+        try:
+            for pat in enrich_globs:
+                if any(out_dir.glob(pat)):
+                    return "Enrichment"
+        except Exception:
+            pass
+
+        return ""
+
+    def draw_from_out_dir(self):
+        out_dir = Path((self.draw_out_dir.text() or "").strip())
+        if not out_dir.exists() or not out_dir.is_dir():
+            QMessageBox.information(self, "Info", "Please select a valid RNA-seq output folder.")
+            return
+
+        kind = (self.draw_kind.currentText() or "Auto").strip()
+        if kind == "Auto":
+            kind = self._infer_kind(out_dir)
+
+        if not kind:
+            QMessageBox.warning(
+                self,
+                "Draw failed",
+                "Could not infer the RNA-seq module from this folder.\n\n"
+                "Please choose the module explicitly or confirm that the folder contains RNA-seq outputs.",
+            )
+            return
+
+        title = (self.draw_title.text() or "").strip() or self._default_title(kind)
+
+        try:
+            if kind == "DEG":
+                deg_tsv = out_dir / "deg.tsv"
+                if not deg_tsv.exists():
+                    art = out_dir / "artifacts.json"
+                    if art.exists():
+                        try:
+                            data = json.loads(art.read_text(encoding="utf-8", errors="ignore"))
+                            rel = str((data or {}).get("deg_tsv") or "").strip()
+                            if rel:
+                                cand = out_dir / rel
+                                if cand.exists():
+                                    deg_tsv = cand
+                        except Exception:
+                            pass
+                if not deg_tsv.exists():
+                    raise FileNotFoundError("deg.tsv was not found in the selected folder.")
+                self.results.set_rnaseq_plotly_context(deg_tsv, out_dir=out_dir, title=title)
+
+            elif kind == "Cluster/DimRed":
+                if not ((out_dir / "sample_embedding.tsv").exists() or (out_dir / "sample_clusters.tsv").exists()):
+                    raise FileNotFoundError("sample_embedding.tsv / sample_clusters.tsv was not found in the selected folder.")
+                self.results.set_rnaseq_cluster_context(out_dir, title=title)
+
+            elif kind == "GeneClust":
+                if not any((out_dir / fn).exists() for fn in ["gene_embedding.tsv", "cluster_profiles.tsv", "gene_clusters.tsv", "cluster_sizes.tsv"]):
+                    raise FileNotFoundError("GeneClust output files were not found in the selected folder.")
+                self.results.set_rnaseq_geneclust_context(out_dir, title=title)
+
+            elif kind == "Enrichment":
+                # ResultsPane performs detailed table discovery; we only require a plausible output folder.
+                art = out_dir / "artifacts.json"
+                has_table = False
+                try:
+                    has_table = art.exists() or any(out_dir.glob("*.tsv")) or any(out_dir.glob("*.csv"))
+                except Exception:
+                    has_table = art.exists()
+                if not has_table:
+                    raise FileNotFoundError("No enrichment tables or artifacts.json were found in the selected folder.")
+                self.results.set_rnaseq_enrich_context(out_dir, title=title)
+
+            else:
+                raise ValueError(f"Unsupported RNA-seq module: {kind}")
+
+            self.last_out_dir = out_dir
+            self.append_log(f"[RNA-seq Draw] Loaded ({kind}): {out_dir}")
+            try:
+                self.results.tabs.setCurrentIndex(0)
+            except Exception:
+                pass
+
+        except Exception as e:
+            self.append_log(f"[RNA-seq Draw] WARN: draw failed: {e}")
+            QMessageBox.warning(self, "Draw failed", str(e))
+
+
 class RNASeqHub(QWidget):
     """RNA-seq hub: DEG + enrichment + standalone GO."""
     def __init__(self, log: QTextEdit, results: ResultsPane):
         super().__init__()
+
+        def _wrap_scroll(w: QWidget) -> QScrollArea:
+            sc = QScrollArea()
+            sc.setWidgetResizable(True)
+            sc.setFrameShape(QScrollArea.NoFrame)
+            sc.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            sc.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+            try:
+                w.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+                w.setMinimumWidth(0)
+            except Exception:
+                pass
+            sc.setWidget(w)
+            return sc
+
         tabs = QTabWidget()
-        tabs.addTab(RNASeqPreprocessTab(log, results), "Preprocess")
-        tabs.addTab(RNASeqTab(log, results), "DEG")
-        tabs.addTab(RNASeqClusterTab(log, results), "Cluster/DimRed")
-        tabs.addTab(RNASeqGeneModelTab(log, results), "GeneClust")
-        tabs.addTab(RNASeqEggnogMapperTab(log, results), "EggNOG-mapper")
-        tabs.addTab(RNASeqGODBBuilderTab(log, results), "GO DB builder")
-        tabs.addTab(RNASeqEnrichTab(log, results), "Enrichment")
+        tabs.addTab(_wrap_scroll(RNASeqPreprocessTab(log, results)), "Preprocess")
+        tabs.addTab(_wrap_scroll(RNASeqTab(log, results)), "DEG")
+        tabs.addTab(_wrap_scroll(RNASeqClusterTab(log, results)), "Cluster/DimRed")
+        tabs.addTab(_wrap_scroll(RNASeqGeneModelTab(log, results)), "GeneClust")
+        tabs.addTab(_wrap_scroll(RNASeqEggnogMapperTab(log, results)), "EggNOG-mapper")
+        tabs.addTab(_wrap_scroll(RNASeqGODBBuilderTab(log, results)), "GO DB builder")
+        tabs.addTab(_wrap_scroll(RNASeqEnrichTab(log, results)), "Enrichment")
+        tabs.addTab(_wrap_scroll(RNASeqDrawTab(log, results)), "Draw")
         lay = QVBoxLayout()
         lay.addWidget(tabs)
         self.setLayout(lay)
@@ -30636,8 +30867,8 @@ class PolyMappolyWizardTab(QWidget):
 
         self.map_ncpus = QSpinBox(); self.map_ncpus.setRange(1, 128); self.map_ncpus.setValue(1)
         self.update_global_error = QCheckBox("Update with global genotyping error")
-        self.update_global_error.setChecked(False)
-        self.global_error = QDoubleSpinBox(); self.global_error.setRange(0, 0.5); self.global_error.setDecimals(3); self.global_error.setValue(0.05)
+        self.update_global_error.setChecked(True)
+        self.global_error = QDoubleSpinBox(); self.global_error.setRange(0, 0.5); self.global_error.setDecimals(3); self.global_error.setValue(0.1)
 
         map_form = QFormLayout()
         row6 = QHBoxLayout(); row6.addWidget(self.order_rds); row6.addWidget(btn_order_rds)
