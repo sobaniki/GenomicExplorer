@@ -5324,6 +5324,64 @@ class ResultsPane(QWidget):
         self.sp_integrate_export_w = QSpinBox(); self.sp_integrate_export_w.setRange(400, 8000); self.sp_integrate_export_w.setValue(1400)
         self.sp_integrate_export_h = QSpinBox(); self.sp_integrate_export_h.setRange(300, 8000); self.sp_integrate_export_h.setValue(800)
 
+        # Trace styles (publication-friendly)
+        # Scatter/markers
+        self.sp_integrate_point_size = QSpinBox(); self.sp_integrate_point_size.setRange(1, 40); self.sp_integrate_point_size.setValue(6)
+        self.ds_integrate_opacity = QDoubleSpinBox(); self.ds_integrate_opacity.setDecimals(2)
+        self.ds_integrate_opacity.setRange(0.05, 1.0); self.ds_integrate_opacity.setSingleStep(0.05); self.ds_integrate_opacity.setValue(0.85)
+
+        self.cb_integrate_legend = QCheckBox("Show legend")
+        self.cb_integrate_legend.setChecked(True)
+
+        # Discrete coloring (e.g., chromosome colors)
+        self.cmb_integrate_color_mode = QComboBox()
+        self.cmb_integrate_color_mode.addItems(["Cycle palette", "Alternating (grayscale)", "Mono (black)"])
+
+        self.cmb_integrate_palette = QComboBox()
+        # Common Plotly qualitative palette names (will be resolved at apply-time)
+        self.cmb_integrate_palette.addItems([
+            "Plotly", "D3", "G10", "T10", "Alphabet",
+            "Dark24", "Light24",
+            "Set1", "Set2", "Set3",
+            "Pastel1", "Pastel2",
+            "Bold", "Prism", "Safe", "Vivid"
+        ])
+        try:
+            self.cmb_integrate_palette.setCurrentText("Plotly")
+        except Exception:
+            pass
+
+        # Heatmap styles
+        self.cmb_integrate_hm_colorscale = QComboBox()
+        self.cmb_integrate_hm_colorscale.addItems([
+            "Viridis", "Cividis", "Plasma", "Inferno", "Magma", "Turbo",
+            "Blues", "Greens", "Reds", "Greys",
+            "RdBu", "Spectral", "BrBG", "PiYG"
+        ])
+        try:
+            self.cmb_integrate_hm_colorscale.setCurrentText("Viridis")
+        except Exception:
+            pass
+
+        self.cb_integrate_hm_colorbar = QCheckBox("Show colorbar")
+        self.cb_integrate_hm_colorbar.setChecked(True)
+
+        self.cb_integrate_hm_zauto = QCheckBox("Auto z range")
+        self.cb_integrate_hm_zauto.setChecked(True)
+
+        self.ds_integrate_hm_zmin = QDoubleSpinBox(); self.ds_integrate_hm_zmin.setDecimals(4)
+        self.ds_integrate_hm_zmin.setRange(-1e9, 1e9); self.ds_integrate_hm_zmin.setValue(0.0)
+        self.ds_integrate_hm_zmax = QDoubleSpinBox(); self.ds_integrate_hm_zmax.setDecimals(4)
+        self.ds_integrate_hm_zmax.setRange(-1e9, 1e9); self.ds_integrate_hm_zmax.setValue(1.0)
+
+        # Enable/disable zmin/zmax with Auto
+        try:
+            self.ds_integrate_hm_zmin.setEnabled(False)
+            self.ds_integrate_hm_zmax.setEnabled(False)
+            self.cb_integrate_hm_zauto.toggled.connect(lambda on: (self.ds_integrate_hm_zmin.setEnabled(not on), self.ds_integrate_hm_zmax.setEnabled(not on)))
+        except Exception:
+            pass
+
         self.btn_integrate_apply = QPushButton("Apply style")
         self.btn_integrate_apply.clicked.connect(lambda *args, **kwargs: self._rebuild_integrate_plotly())
 
@@ -5360,6 +5418,41 @@ class ResultsPane(QWidget):
         w_im = QWidget(); w_im.setLayout(row_im)
         form_int.addRow("Margins", w_im)
         form_int.addRow("Height (px)", self.sp_integrate_height)
+
+
+        # Marker styles (scatter)
+        row_ip = QHBoxLayout()
+        row_ip.addWidget(QLabel("Size")); row_ip.addWidget(self.sp_integrate_point_size)
+        row_ip.addWidget(QLabel("Opacity")); row_ip.addWidget(self.ds_integrate_opacity)
+        row_ip.addStretch(1)
+        w_ip = QWidget(); w_ip.setLayout(row_ip)
+        form_int.addRow("Markers", w_ip)
+
+        # Discrete coloring (chromosomes etc.)
+        row_ic = QHBoxLayout()
+        row_ic.addWidget(QLabel("Mode")); row_ic.addWidget(self.cmb_integrate_color_mode)
+        row_ic.addWidget(QLabel("Palette")); row_ic.addWidget(self.cmb_integrate_palette)
+        row_ic.addStretch(1)
+        w_ic = QWidget(); w_ic.setLayout(row_ic)
+        form_int.addRow("Colors", w_ic)
+
+        form_int.addRow("Legend", self.cb_integrate_legend)
+
+        # Heatmap styles
+        row_ihm = QHBoxLayout()
+        row_ihm.addWidget(self.cmb_integrate_hm_colorscale)
+        row_ihm.addWidget(self.cb_integrate_hm_colorbar)
+        row_ihm.addStretch(1)
+        w_ihm = QWidget(); w_ihm.setLayout(row_ihm)
+        form_int.addRow("Heatmap", w_ihm)
+
+        row_iz = QHBoxLayout()
+        row_iz.addWidget(self.cb_integrate_hm_zauto)
+        row_iz.addWidget(QLabel("zmin")); row_iz.addWidget(self.ds_integrate_hm_zmin)
+        row_iz.addWidget(QLabel("zmax")); row_iz.addWidget(self.ds_integrate_hm_zmax)
+        row_iz.addStretch(1)
+        w_iz = QWidget(); w_iz.setLayout(row_iz)
+        form_int.addRow("Z range", w_iz)
 
         form_int.addRow("", self.btn_integrate_apply)
 
@@ -10926,6 +11019,10 @@ class ResultsPane(QWidget):
             pass
 
         if getattr(self, '_integrate_fig', None) is None or getattr(self, '_integrate_out_dir', None) is None:
+            try:
+                QMessageBox.information(self, 'Style', 'No Integrate/Prioritize plot context is available. Please draw a plot first (Integrate → Prioritize → Draw).')
+            except Exception:
+                pass
             return
 
         go, pio, _qual = _try_import_plotly()
@@ -10933,6 +11030,13 @@ class ResultsPane(QWidget):
             return
 
         fig = self._integrate_fig
+
+        # If interactive view is off, style changes may appear to do nothing.
+        try:
+            if hasattr(self, 'cb_interactive') and (not self.cb_interactive.isChecked()):
+                QMessageBox.information(self, 'Style', 'Interactive view is OFF. Turn on the Interactive checkbox to preview Plotly style changes.')
+        except Exception:
+            pass
 
         try:
             title = (self.ed_integrate_title.text() or '').strip()
@@ -10977,6 +11081,160 @@ class ResultsPane(QWidget):
             )
         except Exception:
             pass
+
+        # --- Trace styling (markers / heatmap) ---
+        # These controls are intended to make Integrate/Prioritize plots publication-ready.
+        try:
+            show_legend = bool(self.cb_integrate_legend.isChecked())
+            fig.update_layout(showlegend=show_legend)
+        except Exception:
+            pass
+
+        # Marker/scatter style
+        try:
+            psize = int(self.sp_integrate_point_size.value())
+        except Exception:
+            psize = None
+        try:
+            popacity = float(self.ds_integrate_opacity.value())
+        except Exception:
+            popacity = None
+
+        # Discrete palette (e.g., chromosome coloring)
+        pal = None
+        try:
+            color_mode = str(self.cmb_integrate_color_mode.currentText() or '').strip().lower()
+        except Exception:
+            color_mode = ''
+        if 'mono' in color_mode:
+            pal = ['#000000']
+        elif 'alternating' in color_mode:
+            pal = ['#636363', '#bdbdbd']
+        else:
+            try:
+                pal_name = str(self.cmb_integrate_palette.currentText() or '').strip()
+            except Exception:
+                pal_name = 'Plotly'
+            try:
+                # _qual is plotly.colors.qualitative module returned by _try_import_plotly()
+                pal = getattr(_qual, pal_name, None) if _qual is not None else None
+            except Exception:
+                pal = None
+            if not pal:
+                try:
+                    pal = getattr(_qual, 'Plotly', None) or getattr(_qual, 'D3', None)
+                except Exception:
+                    pal = None
+
+        # Apply to marker scatter traces (scatter/scattergl with markers)
+        try:
+            marker_traces = []
+            for ti, tr in enumerate(getattr(fig, 'data', []) or []):
+                try:
+                    ttype = str(getattr(tr, 'type', '') or '').lower()
+                    if ttype not in ('scatter', 'scattergl'):
+                        continue
+                    mode = str(getattr(tr, 'mode', '') or '')
+                    if 'markers' not in mode:
+                        continue
+                    marker_traces.append((ti, tr))
+                except Exception:
+                    continue
+
+            # Update sizes/opacities
+            for _, tr in marker_traces:
+                try:
+                    if psize is not None:
+                        tr.marker.size = psize
+                except Exception:
+                    pass
+                try:
+                    if popacity is not None:
+                        tr.marker.opacity = popacity
+                except Exception:
+                    pass
+
+            # Apply palette / alternation / mono (per trace)
+            if pal:
+                k = 0
+                for _, tr in marker_traces:
+                    try:
+                        tr.marker.color = pal[k % len(pal)]
+                        k += 1
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+# Heatmap styling
+        try:
+            hm_name = str(self.cmb_integrate_hm_colorscale.currentText() or '').strip()
+        except Exception:
+            hm_name = 'Viridis'
+        try:
+            hm_show = bool(self.cb_integrate_hm_colorbar.isChecked())
+        except Exception:
+            hm_show = True
+        try:
+            hm_zauto = bool(self.cb_integrate_hm_zauto.isChecked())
+        except Exception:
+            hm_zauto = True
+        try:
+            hm_zmin = float(self.ds_integrate_hm_zmin.value())
+            hm_zmax = float(self.ds_integrate_hm_zmax.value())
+        except Exception:
+            hm_zmin, hm_zmax = 0.0, 1.0
+
+        # Resolve Plotly colorscale lists (more consistent than relying on string names)
+        hm_scale = None
+        try:
+            from plotly.colors import sequential as _seq, diverging as _div  # type: ignore
+            _hm_map = {
+                'Viridis': _seq.Viridis,
+                'Cividis': _seq.Cividis,
+                'Plasma': _seq.Plasma,
+                'Inferno': _seq.Inferno,
+                'Magma': _seq.Magma,
+                'Turbo': _seq.Turbo,
+                'Blues': _seq.Blues,
+                'Greens': _seq.Greens,
+                'Reds': _seq.Reds,
+                'Greys': _seq.Greys,
+                'RdBu': _div.RdBu,
+                'Spectral': _div.Spectral,
+                'BrBG': _div.BrBG,
+                'PiYG': _div.PiYG,
+            }
+            hm_scale = _hm_map.get(hm_name, _seq.Viridis)
+        except Exception:
+            hm_scale = None
+
+        try:
+            for tr in getattr(fig, 'data', []) or []:
+                if str(getattr(tr, 'type', '') or '').lower() not in ('heatmap', 'heatmapgl'):
+                    continue
+                try:
+                    if hm_scale is not None:
+                        tr.colorscale = hm_scale
+                except Exception:
+                    pass
+                try:
+                    tr.showscale = hm_show
+                except Exception:
+                    pass
+                try:
+                    tr.zauto = hm_zauto
+                except Exception:
+                    pass
+                if not hm_zauto:
+                    try:
+                        tr.zmin = hm_zmin
+                        tr.zmax = hm_zmax
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
 
         try:
             out_dir = Path(self._integrate_out_dir)
@@ -27883,30 +28141,100 @@ class IntegrateTab(QWidget):
         sec_plot = CollapsibleSection("Plot", plot_container, collapsed=True)
 
 
-        # Scroll container
-        content = QWidget()
-        lay = QVBoxLayout()
-        lay.addWidget(sec_peaks)
-        lay.addWidget(sec_genes)
-        lay.addWidget(sec_evidence)
-        lay.addWidget(sec_score)
-        lay.addWidget(sec_status)
-        lay.addWidget(sec_plot)
-        lay.addStretch(1)
-        content.setLayout(lay)
+        # -------------------------
+        # Subtabs: Analysis / Draw
+        # -------------------------
 
-        scroll = QScrollArea(); scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setWidget(content)
+        # Analysis page (Run)
+        content_run = QWidget()
+        lay_run = QVBoxLayout()
+        lay_run.addWidget(sec_peaks)
+        lay_run.addWidget(sec_genes)
+        lay_run.addWidget(sec_evidence)
+        lay_run.addWidget(sec_score)
+        lay_run.addStretch(1)
+        content_run.setLayout(lay_run)
+
+        run_scroll = QScrollArea(); run_scroll.setWidgetResizable(True)
+        run_scroll.setFrameShape(QScrollArea.NoFrame)
+        run_scroll.setWidget(content_run)
+
+        run_page = QWidget()
+        run_page_lay = QVBoxLayout()
+        run_page_lay.addWidget(w_out)
+        run_page_lay.addWidget(w_run)
+        run_page_lay.addWidget(run_scroll)
+        run_page.setLayout(run_page_lay)
+
+        # Draw page (load existing results)
+        self.ed_pri_draw_dir = QLineEdit()
+        self.ed_pri_draw_dir.setPlaceholderText("integrate_prioritize output folder (contains candidates_ranked.tsv)")
+        b_draw_dir = QPushButton("Browse")
+        b_draw_dir.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_draw_dir.clicked.connect(lambda *a, **k: self._pick_dir_lineedit(self.ed_pri_draw_dir))
+
+        b_draw_use_last = QPushButton("Use last")
+        b_draw_use_last.clicked.connect(lambda *a, **k: self.ed_pri_draw_dir.setText(str(self.last_prioritize_out_dir)) if getattr(self, 'last_prioritize_out_dir', None) else None)
+
+        row_draw_dir = QHBoxLayout()
+        row_draw_dir.addWidget(QLabel("Results folder"))
+        row_draw_dir.addWidget(self.ed_pri_draw_dir, 1)
+        row_draw_dir.addWidget(b_draw_dir)
+        row_draw_dir.addWidget(b_draw_use_last)
+        w_draw_dir = QWidget(); w_draw_dir.setLayout(row_draw_dir)
+
+        self.ed_pri_draw_candidates = QLineEdit()
+        self.ed_pri_draw_candidates.setPlaceholderText("optional: candidates_ranked.tsv (if not in the results folder)")
+        b_draw_cand = QPushButton("Browse")
+        b_draw_cand.setStyleSheet(GE_BTN_BROWSE_QSS)
+        b_draw_cand.clicked.connect(lambda *a, **k: self._pick_file_lineedit(self.ed_pri_draw_candidates, "TSV (*.tsv *.txt);;All (*.*)"))
+        row_draw_cand = QHBoxLayout()
+        row_draw_cand.addWidget(QLabel("Candidates TSV"))
+        row_draw_cand.addWidget(self.ed_pri_draw_candidates, 1)
+        row_draw_cand.addWidget(b_draw_cand)
+        w_draw_cand = QWidget(); w_draw_cand.setLayout(row_draw_cand)
+
+        b_draw_load = QPushButton("Load")
+        b_draw_load.setStyleSheet(GE_BTN_RUN_QSS)
+        b_draw_load.clicked.connect(lambda *a, **k: self.load_prioritize_draw())
+
+        b_draw_open = QPushButton("Open output")
+        b_draw_open.clicked.connect(lambda *a, **k: self.open_last_out_dir())
+
+        row_draw_act = QHBoxLayout()
+        row_draw_act.addWidget(b_draw_load)
+        row_draw_act.addWidget(b_draw_open)
+        w_draw_act = QWidget(); w_draw_act.setLayout(row_draw_act)
+
+        draw_content = QWidget()
+        draw_lay = QVBoxLayout()
+        draw_lay.addWidget(w_draw_dir)
+        draw_lay.addWidget(w_draw_cand)
+        draw_lay.addWidget(w_draw_act)
+        draw_lay.addWidget(sec_status)
+        draw_lay.addWidget(sec_plot)
+        draw_lay.addStretch(1)
+        draw_content.setLayout(draw_lay)
+
+        draw_scroll = QScrollArea(); draw_scroll.setWidgetResizable(True)
+        draw_scroll.setFrameShape(QScrollArea.NoFrame)
+        draw_scroll.setWidget(draw_content)
+
+        draw_page = QWidget()
+        draw_page_lay = QVBoxLayout()
+        draw_page_lay.addWidget(draw_scroll)
+        draw_page.setLayout(draw_page_lay)
+
+        self.subtabs_pri = QTabWidget()
+        self.subtabs_pri.addTab(run_page, "Analysis")
+        self.subtabs_pri.addTab(draw_page, "Draw")
 
         root = QWidget()
         root_lay = QVBoxLayout()
-        root_lay.addWidget(w_out)
-        root_lay.addWidget(w_run)
-        root_lay.addWidget(scroll)
+        root_lay.addWidget(self.subtabs_pri)
         root.setLayout(root_lay)
 
-        # State
+# State
         self.last_prioritize_out_dir: Path | None = None
         self.last_candidates_ranked: Path | None = None
         self.legacy_tools_window: QWidget | None = None
@@ -28075,6 +28403,13 @@ class IntegrateTab(QWidget):
 
         self.ed_pri_last_out.setText(str(self.last_out_dir))
         self.ed_pri_last_candidates.setText(str(self.last_candidates_ranked) if self.last_candidates_ranked.exists() else "")
+
+        # Also set Draw tab default to the latest output
+        try:
+            if getattr(self, 'ed_pri_draw_dir', None) is not None:
+                self.ed_pri_draw_dir.setText(str(self.last_out_dir))
+        except Exception:
+            pass
 
         self.reload_prioritize_view()
         self.append_log(f"Done. out_dir={self.last_out_dir}")
@@ -29385,6 +29720,154 @@ class IntegrateTab(QWidget):
         lay.addStretch(1)
         w.setLayout(lay)
         return w
+
+    def load_prioritize_draw(self):
+        """Load an existing integrate_prioritize output folder and enable plotting/preview (Draw tab)."""
+        # Resolve output directory / candidates_ranked.tsv
+        base = ''
+        cand_override = ''
+        try:
+            base = str(getattr(self, 'ed_pri_draw_dir', None).text()).strip()
+        except Exception:
+            base = ''
+        try:
+            cand_override = str(getattr(self, 'ed_pri_draw_candidates', None).text()).strip()
+        except Exception:
+            cand_override = ''
+
+        out_dir = None
+        cand_path = None
+
+        def _pick_latest(paths):
+            try:
+                paths = [Path(p) for p in paths if p]
+                paths = [p for p in paths if p.exists()]
+                if not paths:
+                    return None
+                return sorted(paths, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+            except Exception:
+                return None
+
+        # If user specified candidates_ranked.tsv explicitly
+        if cand_override:
+            p = Path(cand_override)
+            if p.is_dir():
+                p = p / 'candidates_ranked.tsv'
+            if p.exists() and p.is_file():
+                cand_path = p
+                out_dir = p.parent
+
+        # Otherwise infer from base dir/file
+        if cand_path is None:
+            if base:
+                p = Path(base)
+                if p.is_file():
+                    # allow direct file selection
+                    if p.name.lower().endswith('.tsv') and 'candidates' in p.name.lower():
+                        cand_path = p
+                        out_dir = p.parent
+                elif p.is_dir():
+                    # direct
+                    c = p / 'candidates_ranked.tsv'
+                    if c.exists():
+                        cand_path = c
+                        out_dir = p
+                    else:
+                        # search in immediate subfolders (depth <= 2)
+                        try:
+                            hits = []
+                            # prefer common pattern integrate_prioritize_*
+                            hits.extend(list(p.glob('integrate_prioritize_*/candidates_ranked.tsv')))
+                            hits.extend(list(p.glob('*/*candidates_ranked.tsv')))
+                            hits.extend(list(p.glob('**/candidates_ranked.tsv')))
+                            # de-dup
+                            uniq = []
+                            seen = set()
+                            for h in hits:
+                                try:
+                                    hp = Path(h)
+                                    if hp in seen:
+                                        continue
+                                    seen.add(hp)
+                                    uniq.append(hp)
+                                except Exception:
+                                    pass
+                            cand = _pick_latest(uniq)
+                            if cand is not None:
+                                cand_path = cand
+                                out_dir = cand.parent
+                        except Exception:
+                            pass
+
+        if cand_path is None or out_dir is None or not Path(cand_path).exists():
+            QMessageBox.warning(self, 'Not found', 'candidates_ranked.tsv was not found in the specified folder.')
+            return
+
+        out_dir = Path(out_dir)
+        cand_path = Path(cand_path)
+
+        # Update state
+        self.last_out_dir = out_dir
+        self.last_prioritize_out_dir = out_dir
+        self.last_candidates_ranked = cand_path
+        self._pri_df_cache = None
+
+        # Update status boxes if present
+        try:
+            if getattr(self, 'ed_pri_last_out', None) is not None:
+                self.ed_pri_last_out.setText(str(out_dir))
+        except Exception:
+            pass
+        try:
+            if getattr(self, 'ed_pri_last_candidates', None) is not None:
+                self.ed_pri_last_candidates.setText(str(cand_path))
+        except Exception:
+            pass
+
+        # Load meta.json and restore evidence file lists (for DEG overlay, etc.)
+        try:
+            meta_path = out_dir / 'meta.json'
+            if meta_path.exists():
+                meta = json.loads(meta_path.read_text(encoding='utf-8'))
+                params = meta.get('params', {}) if isinstance(meta, dict) else {}
+                def _fill_tbl(tbl, paths):
+                    try:
+                        if tbl is None:
+                            return
+                        tbl.setRowCount(0)
+                        if not paths:
+                            return
+                        for fp in paths:
+                            fp = str(fp).strip()
+                            if not fp:
+                                continue
+                            r = tbl.rowCount()
+                            tbl.insertRow(r)
+                            lab = Path(fp).name
+                            tbl.setItem(r, 0, QTableWidgetItem(lab))
+                            tbl.setItem(r, 1, QTableWidgetItem(fp))
+                    except Exception:
+                        pass
+
+                _fill_tbl(getattr(self, 'tbl_pri_deg', None), params.get('deg_tsv_list', []))
+                _fill_tbl(getattr(self, 'tbl_pri_blast', None), params.get('blast_tsv_list', []))
+                _fill_tbl(getattr(self, 'tbl_pri_eggnog', None), params.get('eggnog_annotations_list', []))
+        except Exception:
+            pass
+
+        # Refresh view + plot selectors
+        try:
+            self.reload_prioritize_view()
+        except Exception:
+            pass
+        try:
+            self._pri_plot_refresh_deg_choices()
+        except Exception:
+            pass
+
+        self.append_log(f"[INFO] Loaded Prioritize results: {out_dir}")
+
+
 
     def _pick_file_lineedit(self, le: QLineEdit, filt: str):
         fp, _ = QFileDialog.getOpenFileName(self, "Select file", "", filt)
