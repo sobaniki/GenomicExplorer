@@ -129,7 +129,7 @@ Multi-locus models, such as MLMM  (Segura et al., 2012) and FarmCPUpp (Kusmec an
 
 <img width="229" height="211" alt="Screenshot from 2026-02-26 16-05-41" src="https://github.com/user-attachments/assets/ba66c7a4-cdd6-4203-a0db-2d93d2a70302" />
 
-DEG (Differentially Expressed Genes) (Robinson et al., 2010; Love et al., 2014; Law et al., 2014; Ritchie et al., 2015; Tarazona et al., 2011; Leng et al., 2013), sample clustering/dimension reduction (Scrucca et al., 2023), model-based gene clustering (Rau et al., 2015; Si et al., 2014; Rau and Maugis-Rabusseau, 2018) and GO (Gene Ontology) enrichment analyses are implemented.   
+DEG (Differentially Expressed Genes) detection (Robinson et al., 2010; Love et al., 2014; Law et al., 2014; Ritchie et al., 2015; Tarazona et al., 2011; Leng et al., 2013), sample clustering/dimension reduction (Scrucca et al., 2023), model-based gene clustering (Rau et al., 2015; Si et al., 2014; Rau and Maugis-Rabusseau, 2018) and GO (Gene Ontology) enrichment analyses are implemented.   
 R packages for enrichment analyses are generally available from Bioconductor (Falcon and Gentleman, 2007; Yu et al., 2012; Young et al., 2010).   
 For non-model organisms, GO DB (DataBase) builder is also implemented.   
 
