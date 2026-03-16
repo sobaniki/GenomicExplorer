@@ -29,12 +29,6 @@ install_cran <- function(pkgs) {
   install.packages(pkgs, repos="https://cloud.r-project.org")
 }
 
-install_cran_ver <- function(pkgs, vers) {
-  for (cyc1 in 1:length(pkgs)) {
-    remotes::install_version(pkgs[cyc1], version = vers[cyc1], repos = "https://cloud.r-project.org")
-  }
-}
-
 install_bioc <- function(pkgs) {
   if (!requireNamespace("BiocManager", quietly=TRUE)) {
     install.packages("BiocManager", repos="https://cloud.r-project.org")
@@ -55,29 +49,14 @@ install_github <- function(repos) {
   }
 }
 
-install_github_ver <- function(pkgs, vers) {
-  for (cyc1 in 1:length(pkgs)) {
-    devtools::install_github(pkgs[cyc1], ref = vers[cyc1], upgrade="never", dependencies=TRUE)
-  }
-}
-
-# ---- packages inferred from GE plugins (core vs heavy) ----
+# ---- packages inferred from GE_v0223b plugins (core vs heavy) ----
 # core: 比較的入れやすく、機能の穴埋めに効く
 cran_core <- c(
-  "ASMap", "onemap", "mappoly", "AlphaSimR", "updog", 
-  "rrBLUP", "RAINBOWR", "NBPSeq", "missRanger", "softImpute", 
-  "samr", "CompQuadForm", "RLRsim", "quadprog", "doParallel"
+  "ASMap", "onemap", "mappoly", "AlphaSimR", "updog", "rrBLUP", "RAINBOWR", "NBPSeq", "missRanger", "softImpute", "samr", "CompQuadForm", "RLRsim", "quadprog", "doParallel"
 )
-cran_version <- c("1.0-8", "3.2.4", "0.4.2", "2.1.0", "2.1.6",
-                  "4.6.3", "0.1.38", "0.3.1", "2.6.1", "1.4-3",
-                  "3.0", "1.4.4", "3.1-9", "1.5-8", "1.0.17")
 
-bioc_core <- c(
-  #"GBScleanR", 
-  #"TCC", 
-  #"clusterSeq", 
-  #"org.At.tair.db", 
-  #"baySeq"
+bioc_core <- c("DESeq2", "edgeR", "limma", "EBSeq", "NOISeq", "GOstats", "GO.db", "clusterProfiler",
+  "GBScleanR", "TCC", "clusterSeq", "topGO", "goseq", "VariantAnnotation", "org.At.tair.db", "baySeq"
 )
 
 dev_github <- c("hadley/pryr",
@@ -87,31 +66,20 @@ dev_github <- c("hadley/pryr",
 		"jlboat/PHENIX",
 		"deruncie/MegaLMM",
 		"jendelman/GWASpoly")
-dev_github_ver <- c("0.1.6.9000",
-                    "2.1.0.9000",
-                    "0.1.1",
-                    "1.2.0",
-                    "1.0.1",
-                    "0.9.5",
-                    "2.14")
-
 #For MLMM
 install.packages("https://github.com/Gregor-Mendel-Institute/mlmm/files/1356516/emma_1.1.2.tar.gz", repos = NULL)
 install.packages("https://cran.r-project.org/src/contrib/Archive/MBCluster.Seq/MBCluster.Seq_1.0.tar.gz", repos = NULL)
-install.packages("https://cran.r-project.org/src/contrib/Archive/qtlpoly/qtlpoly_0.2.2.tar.gz", repos = NULL)
+install.packages("https://cran.r-project.org/src/contrib/Archive/qtlpoly/qtlpoly_0.2.4.tar.gz", repos = NULL)
 install.packages("https://cran.r-project.org/src/contrib/Archive/impute/impute_1.26.0.tar.gz", repos = NULL)
 
 # ---- profile selection ----
 if (profile == "core") {
-  #install_cran(cran_core)
-  #install_bioc(bioc_core)
-  install_cran_ver(cran_core, cran_version)
+  install_cran(cran_core)
+  install_bioc(bioc_core)
 } else {
-  #install_cran(cran_core)
-  #install_bioc(bioc_core)
-  #install_github(dev_github)
-  install_cran_ver(cran_core, cran_version)
-  install_github_ver(dev_github, dev_github_ver)
+  install_cran(cran_core)
+  install_bioc(bioc_core)
+  install_github(dev_github)
 }
 
 cat("[install_optional_R] done.\n")

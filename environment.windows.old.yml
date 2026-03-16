@@ -1,0 +1,95 @@
+name: GenomicExplorer
+channels:
+  - conda-forge
+  - bioconda
+channel_priority: strict
+
+dependencies:
+  # -------------------------
+  # Python / GUI
+  # -------------------------
+  - python=3.11
+  - pip
+  - openpyxl
+  - pyside6            # GUI本体 :contentReference[oaicite:4]{index=4}
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib-base
+  - pyyaml
+  - plotly             # :contentReference[oaicite:5]{index=5}
+  - python-kaleido     # plotly画像/PDF出力 :contentReference[oaicite:6]{index=6}
+  - plink2
+  - bcftools
+
+  # -------------------------
+  # External tools used by some Python runners
+  # -------------------------
+  - openjdk            # LepMap3 / TASSEL 等(Java)用 :contentReference[oaicite:7]{index=7}
+  #- blast              # blastn/blastp 等 :contentReference[oaicite:8]{index=8}
+  #- braker3
+  #- augustus
+  #- snap
+
+  # eggnog-mapper はDBが巨大なので「任意」。使うなら有効化
+  #- eggnog-mapper      # :contentReference[oaicite:9]{index=9}
+
+  # -------------------------
+  # R (core)
+  # -------------------------
+  - r-base=4.4.*       # :contentReference[oaicite:10]{index=10}
+  - r-devtools
+  - r-jsonlite
+  - r-optparse
+  - r-data.table
+  - r-ggplot2
+  - r-plotly           # HTML出力で使うことが多い :contentReference[oaicite:11]{index=11}
+  - r-htmlwidgets
+
+  # QTL/GWAS/GP（GEの主要プラグインで使用）
+  - r-qtl              # :contentReference[oaicite:12]{index=12}
+  - r-qtl2             # :contentReference[oaicite:13]{index=13}
+  - r-gaston           # :contentReference[oaicite:14]{index=14}
+  - r-bglr             # :contentReference[oaicite:15]{index=15}
+  - r-glmnet
+  - r-ranger
+  - r-randomforestsrc  # :contentReference[oaicite:16]{index=16}
+
+  # 次元削減/補完の基礎（RNA-seqクラスタ/DimRed等で使いがち）
+  - r-uwot             # :contentReference[oaicite:17]{index=17}
+  - r-rtsne
+  - r-mclust
+  - r-mice
+  - r-missforest
+
+  # -------------------------
+  # Bioconductor (VCF / OrgDb / GO / RNA-seq)
+  # -------------------------
+  #- bioconductor-variantannotation  # :contentReference[oaicite:18]{index=18}
+  #- bioconductor-biostrings
+  #- bioconductor-rsamtools
+  #- bioconductor-genomicranges
+  #- bioconductor-iranges
+  #- bioconductor-s4vectors
+  #- bioconductor-summarizedexperiment
+
+  # OrgDb builder / GO
+  #- bioconductor-annotationdbi
+  #- bioconductor-annotationforge    # :contentReference[oaicite:19]{index=19}
+  #- bioconductor-go.db              # :contentReference[oaicite:20]{index=20}
+  #- bioconductor-gostats            # :contentReference[oaicite:21]{index=21}
+  #- bioconductor-topgo              # :contentReference[oaicite:22]{index=22}
+  #- bioconductor-clusterprofiler    # :contentReference[oaicite:23]{index=23}
+  #- bioconductor-enrichplot         # :contentReference[oaicite:24]{index=24}
+  #- bioconductor-goseq
+
+  # RNA-seq DEG（GE側で参照しているもの）
+  #- bioconductor-deseq2             # :contentReference[oaicite:25]{index=25}
+  #- bioconductor-edger              # :contentReference[oaicite:26]{index=26}
+  #- bioconductor-limma
+
+  # 追加RNA-seq（GEのrunnerで参照あり：必要なら有効化）
+  #- bioconductor-tcc                # :contentReference[oaicite:27]{index=27}
+  #- bioconductor-ebseq              # :contentReference[oaicite:28]{index=28}
+  #- bioconductor-noiseq             # :contentReference[oaicite:29]{index=29}
+  #- r-htscluster                     # :contentReference[oaicite:30]{index=30}
