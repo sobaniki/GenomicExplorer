@@ -80,7 +80,8 @@ cran_core <- c(
   "quadprog", 
   "doParallel", 
   "lobstr", 
-  "coda"
+  "coda",
+  "mppR"
 )
 cran_version <- c(
   "1.0-8", 
@@ -99,7 +100,9 @@ cran_version <- c(
   "1.5-8", 
   "1.0.17", 
   "1.2.0", 
-  "0.19-4.1")
+  "0.19-4.1",
+  "1.5.0"
+)
 
 #bioc_core <- c()
 dev_github <- c(
