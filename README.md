@@ -64,7 +64,7 @@ Please click "install_genomicexplorer.cmd", "install_optional_R.cmd", and "run_g
 ## File format
 In GenomicExplorer, several file format for genotype data can be used.
 
-GenomicExplorer expects VCF (Varinat Call Format), PLINK BED or TSV/CSV formats for many genomics applications.
+GenomicExplorer expects VCF (Varinat Call Format), PLINK BED (Purcell et al., 2007; Chang et al., 2015) or TSV/CSV formats for many genomics applications.
 The genotype TSV/CSV files compose of n (samples as row) x m (markers as column).
 The rownames or first column should be sample (individual) names/IDs.
 The genotype code should be 0/1/2 (1 is heterozygous) for diploids.
@@ -137,7 +137,7 @@ Multi-locus models, such as MLMM  (Segura et al., 2012) and FarmCPUpp (Kusmec an
 
 DEG (Differentially Expressed Genes) detection (Robinson et al., 2010; Love et al., 2014; Law et al., 2014; Ritchie et al., 2015; Tarazona et al., 2011; Leng et al., 2013), sample clustering/dimension reduction (Scrucca et al., 2023), model-based gene clustering (Rau et al., 2015; Si et al., 2014; Rau and Maugis-Rabusseau, 2018) and GO (Gene Ontology) enrichment analyses are implemented.   
 R packages for enrichment analyses are generally available from Bioconductor (Falcon and Gentleman, 2007; Yu et al., 2012; Young et al., 2010).   
-For non-model organisms, GO DB (DataBase) builder is also implemented.   
+For non-model organisms, GO DB (DataBase) builder can be used after using EggNOG-mapper (Cantalapiedra et al., 2021).   
 
 [Bioconductor](https://www.bioconductor.org/)  
 [GOstats](https://www.bioconductor.org/packages/release/bioc/html/GOstats.html)  
