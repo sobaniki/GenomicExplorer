@@ -186,6 +186,9 @@ The Sim tab can generate genotype/phenotype and RNA-seq count data. This is main
 Bi-parental crosses, such as F2 and RIL, inbred and outbred population and others are supported.    
 GenomicExplorer use AlphaSimR (Gaynor et al., 2021) for simulation of genotype/phenotype data.
 
+## Disclaimer
+Use of GenomicExplorer is at your own risk. The developer make no guarantees regarding the results.
+
 ## Paper
 Ishimori, M. (2026) GenomicExplorer: a graphical user interface platform for statistical genetics and genomics. (submitted)
 
