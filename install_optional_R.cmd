@@ -20,8 +20,8 @@ set "PATH=%MMDIR%;%PATH%"
 set "ENV_NAME=GenomicExplorer"
 
 REM --- IMPORTANT: match GUI library location ---
-REM  set "R_LIBS_USER=%~dp0_r_libs"
-REM if not exist "%R_LIBS_USER%" mkdir "%R_LIBS_USER%"
+set "R_LIBS_USER=%~dp0_r_libs"
+if not exist "%R_LIBS_USER%" mkdir "%R_LIBS_USER%"
 
 REM --- run your installer R script (adjust path if needed) ---
   "%MM%" run -n "%ENV_NAME%" Rscript "%~dp0scripts\install_optional_R_windows.R" --profile full

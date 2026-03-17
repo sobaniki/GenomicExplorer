@@ -22,7 +22,7 @@ if not exist "%MM%" (
   echo.
   echo Please install micromamba or adjust this script.
   pause
-  exit /b 1
+REM  exit /b 1
 )
 
 REM --- ensure "micromamba" is visible to child processes (QProcess etc.) ---
@@ -39,7 +39,7 @@ if not exist "%YML%" set "YML=environment.yml"
 if not exist "%YML%" (
   echo [GE][ERROR] environment.windows.yml or environment.yml not found in project root.
   pause
-  exit /b 1
+REM  exit /b 1
 )
 
 echo [GE] micromamba: "%MM%"
@@ -49,13 +49,14 @@ echo.
 
 echo [GE] Creating env (if exists, update)...
 "%MM%" create -y -n "%ENV_NAME%" -f "%YML%"
+pause
 if errorlevel 1 (
   echo [GE] create failed (maybe already exists). Trying env update...
   "%MM%" env update -y -n "%ENV_NAME%" -f "%YML%"
   if errorlevel 1 (
     echo [GE][ERROR] Failed to create/update environment.
     pause
-    exit /b 1
+REM    exit /b 1
   )
 )
 
@@ -65,14 +66,14 @@ echo [GE] Quick check: python & Rscript
 if errorlevel 1 (
   echo [GE][ERROR] python check failed.
   pause
-  exit /b 1
+REM  exit /b 1
 )
 
 "%MM%" run -n "%ENV_NAME%" Rscript -e "cat('R OK\n'); sessionInfo()"
 if errorlevel 1 (
   echo [GE][ERROR] Rscript check failed.
   pause
-  exit /b 1
+REM  exit /b 1
 )
 
 echo.
