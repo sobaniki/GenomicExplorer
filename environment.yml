@@ -11,53 +11,50 @@ dependencies:
   - python=3.11
   - pip=26.0.1
   - openpyxl=3.1.5
-  - pyside6=6.9.0            # GUI本体 :contentReference[oaicite:4]{index=4}
+  - pyside6=6.9.0
   - numpy=2.4.2
   - pandas=3.0.1
   - scipy=1.17.1
   - matplotlib-base=3.10.8
   - pyyaml=6.0.3
-  - plotly=6.5.2             # :contentReference[oaicite:5]{index=5}
-  - python-kaleido=1.2.0     # plotly画像/PDF出力 :contentReference[oaicite:6]{index=6}
+  - plotly=6.5.2
+  - python-kaleido=1.2.0
+  - openjdk=23.0.2
+
+  # -------------------------
+  # External tools
+  # -------------------------
   - plink2=2.0.0a.6.9
   - bcftools=1.23
-
-  # -------------------------
-  # External tools used by some Python runners
-  # -------------------------
-  - openjdk=23.0.2            # LepMap3 / TASSEL 等(Java)用 :contentReference[oaicite:7]{index=7}
-  - blast=2.17.0              # blastn/blastp 等 :contentReference[oaicite:8]{index=8}
-  - braker3=3.0.6
+  - blast=2.17.0
   - augustus=3.5.0
   - snap=2017_03_01
-
-  # eggnog-mapper はDBが巨大なので「任意」。使うなら有効化
-  - eggnog-mapper=2.1.13      # :contentReference[oaicite:9]{index=9}
+  - eggnog-mapper=2.1.13
 
   # -------------------------
   # R (core)
   # -------------------------
-  - r-base=4.4.2       # :contentReference[oaicite:10]{index=10}
+  - r-base=4.4.2
   - r-devtools=2.4.6
   - r-jsonlite=2.0.0
   - r-optparse=1.7.5
   - r-data.table=1.17.8
   - r-ggplot2=4.0.2
-  - r-plotly=4.12.0           # HTML出力で使うことが多い :contentReference[oaicite:11]{index=11}
+  - r-plotly=4.12.0
   - r-htmlwidgets=1.6.4
   - r-remotes=2.5.0
 
-  # QTL/GWAS/GP（GEの主要プラグインで使用）
-  - r-qtl=1.74              # :contentReference[oaicite:12]{index=12}
-  - r-qtl2=0.38             # :contentReference[oaicite:13]{index=13}
-  - r-gaston=1.6           # :contentReference[oaicite:14]{index=14}
-  - r-bglr=1.1.4             # :contentReference[oaicite:15]{index=15}
+  # QTL/GWAS/GP
+  - r-qtl=1.74
+  - r-qtl2=0.38
+  - r-gaston=1.6
+  - r-bglr=1.1.4
   - r-glmnet=4.1_10
   - r-ranger=0.18.0
-  - r-randomforestsrc=3.5.1  # :contentReference[oaicite:16]{index=16}
+  - r-randomforestsrc=3.5.1
 
-  # 次元削減/補完の基礎（RNA-seqクラスタ/DimRed等で使いがち）
-  - r-uwot=0.2.4             # :contentReference[oaicite:17]{index=17}
+  # 次元削減/補完
+  - r-uwot=0.2.4
   - r-rtsne=0.17
   - r-mclust=6.1.2
   - r-mice=3.19.0
@@ -66,37 +63,31 @@ dependencies:
   # -------------------------
   # Bioconductor (VCF / OrgDb / GO / RNA-seq)
   # -------------------------
-  - bioconductor-variantannotation=1.52.0  # :contentReference[oaicite:18]{index=18}
+  - bioconductor-impute
+  - bioconductor-variantannotation=1.52.0
   - bioconductor-biostrings=2.74.0
   - bioconductor-rsamtools=2.22.0
   - bioconductor-genomicranges=1.58.0
   - bioconductor-iranges=2.40.0
   - bioconductor-s4vectors=0.44.0
   - bioconductor-summarizedexperiment=1.36.0
-  
-  #- bioconductor-gbscleanr=2.0.3
   - bioconductor-clusterseq=1.30.0
   - bioconductor-org.at.tair.db=3.20.0
   - bioconductor-bayseq=2.40.0
-
-  # OrgDb builder / GO
   - bioconductor-annotationdbi=1.68.0
-  - bioconductor-annotationforge=1.48.0    # :contentReference[oaicite:19]{index=19}
-  - bioconductor-go.db=3.20.0              # :contentReference[oaicite:20]{index=20}
-  - bioconductor-gostats=2.72.0            # :contentReference[oaicite:21]{index=21}
-  - bioconductor-topgo=2.58.0              # :contentReference[oaicite:22]{index=22}
-  - bioconductor-clusterprofiler=4.14.0    # :contentReference[oaicite:23]{index=23}
-  - bioconductor-enrichplot=1.26.1         # :contentReference[oaicite:24]{index=24}
+  - bioconductor-annotationforge=1.48.0
+  - bioconductor-go.db=3.20.0
+  - bioconductor-gostats=2.72.0
+  - bioconductor-topgo=2.58.0
+  - bioconductor-clusterprofiler=4.14.0
+  - bioconductor-enrichplot=1.26.1
   - bioconductor-goseq=1.58.0
   - bioconductor-coseq=1.30.0
-
-  # RNA-seq DEG（GE側で参照しているもの）
-  - bioconductor-deseq2=1.46.0             # :contentReference[oaicite:25]{index=25}
-  - bioconductor-edger=4.4.0              # :contentReference[oaicite:26]{index=26}
+  - bioconductor-deseq2=1.46.0
+  - bioconductor-edger=4.4.0
   - bioconductor-limma=3.62.1
-
-  # 追加RNA-seq（GEのrunnerで参照あり：必要なら有効化）
-  - bioconductor-tcc=1.46.0                # :contentReference[oaicite:27]{index=27}
-  - bioconductor-ebseq=2.4.0              # :contentReference[oaicite:28]{index=28}
-  - bioconductor-noiseq=2.50.0             # :contentReference[oaicite:29]{index=29}
-  - r-htscluster=2.0.11                     # :contentReference[oaicite:30]{index=30}
+  - bioconductor-tcc=1.46.0
+  - bioconductor-ebseq=2.4.0
+  - bioconductor-noiseq=2.50.0
+  #- bioconductor-gbscleanr=2.0.3
+  - r-htscluster=2.0.11
