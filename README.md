@@ -213,7 +213,9 @@ Falcon, S., and R. Gentleman (2007) Using GOstats to test gene lists for GO term
 
 Friedman, J., T. Hastie and R. Tibshirani (2010) Regularization paths for generalized linear models via coordinate descent. J. Stat. Softw. 33: 1–22.   
 
-Gabriel, L., T. Brüna, K.J. Hoff, M. Ebel, A. Lomsadze, M. Borodovsky and M. Stanke (2024) BRAKER3: fully automated genome annotation using RNA-seq and protein evidence with GeneMark-ETP, AUGUSTUS and TSEBRA. Genome Res. 34: 769–777.   
+Gabriel, L., T. Brüna, K.J. Hoff, M. Ebel, A. Lomsadze, M. Borodovsky and M. Stanke (2024) BRAKER3: fully automated genome annotation using RNA-seq and protein evidence with GeneMark-ETP, AUGUSTUS and TSEBRA. Genome Res. 34: 769–777. 
+
+Garin, V., C. Diallo, M.L. Tékété, K. Théra, B. Guitton, K. Dagno, A.G. Diallo, M. Kouressy, W. Leiser, F. Rattunde, et al. (2024) Characterization of adaptation mechanisms in sorghum using a multireference back-cross nested association mapping design and envirotyping. Genetics 226: iyae003.   
 
 Gaynor, R.C., G. Gorjanc and J.M. Hickey (2021) AlphaSimR: an R package for breeding program simulations. G3 (Bethesda) 11: jkaa017.   
 
