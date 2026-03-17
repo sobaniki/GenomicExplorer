@@ -53,6 +53,12 @@ bash ./scripts/run_linux.sh
 
 The most functions of GenomicExplorer should work in Windows OS. Although GenomicExplorer can work with PowerShell, I prepared the shortcut to install and start GenomicExplorer.
 
+Please install Rtools 4.4 before starting the installation of GenomicExplorer.  
+Rtools can be necessary for the installation of some R packages.  
+[Rtools](https://cran.r-project.org/bin/windows/Rtools/)   
+
+Different from Linux, some R packages and tools are NOT available in Windows OS via Micromamba, or some tools cannot be used in Windows OS.   
+
 Please click "install_genomicexplorer.cmd", "install_optional_R.cmd", and "run_genomicexplorer.cmd" to install and start GenomicExplorer.
 
 ## File format
