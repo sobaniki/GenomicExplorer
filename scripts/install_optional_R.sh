@@ -19,11 +19,11 @@ fi
 micromamba activate "$ENV_NAME"
 
 # project-local R library (so GUI runners can see the same libs)
-export R_LIBS_USER="${ROOT_DIR}/_r_libs"
-mkdir -p "$R_LIBS_USER"
+#export R_LIBS_USER="${ROOT_DIR}/_r_libs"
+#mkdir -p "$R_LIBS_USER"
 
 echo "[GE][install_optional_R] ENV=$ENV_NAME"
-echo "[GE][install_optional_R] R_LIBS_USER=$R_LIBS_USER"
+#echo "[GE][install_optional_R] R_LIBS_USER=$R_LIBS_USER"
 echo "[GE][install_optional_R] PROFILE=$PROFILE"
 
 Rscript "${SCRIPT_DIR}/install_optional_R.R" --profile "$PROFILE"

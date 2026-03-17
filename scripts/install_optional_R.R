@@ -1,10 +1,10 @@
 #!/usr/bin/env Rscript
 
 u <- Sys.getenv("R_LIBS_USER")
-if (nzchar(u)) {
-  dir.create(u, showWarnings = FALSE, recursive = TRUE)
-  .libPaths(c(normalizePath(u, winslash="\\", mustWork=FALSE), .libPaths()))
-}
+#if (nzchar(u)) {
+#  dir.create(u, showWarnings = FALSE, recursive = TRUE)
+#  .libPaths(c(normalizePath(u, winslash="\\", mustWork=FALSE), .libPaths()))
+#}
 
 suppressWarnings(suppressMessages({
   args <- commandArgs(trailingOnly = TRUE)
@@ -66,11 +66,11 @@ install_github_ver <- function(pkgs, vers) {
 cran_core <- c(
   "ASMap", "onemap", "mappoly", "AlphaSimR", "updog", 
   "rrBLUP", "RAINBOWR", "NBPSeq", "missRanger", "softImpute", 
-  "samr", "CompQuadForm", "RLRsim", "quadprog", "doParallel"
+  "samr", "CompQuadForm", "RLRsim", "quadprog", "doParallel", "lobstr", "coda"
 )
 cran_version <- c("1.0-8", "3.2.4", "0.4.2", "2.1.0", "2.1.6",
                   "4.6.3", "0.1.38", "0.3.1", "2.6.1", "1.4-3",
-                  "3.0", "1.4.4", "3.1-9", "1.5-8", "1.0.17")
+                  "3.0", "1.4.4", "3.1-9", "1.5-8", "1.0.17", "1.2.0", "0.19-4.1")
 
 bioc_core <- c(
   #"GBScleanR", 
@@ -80,26 +80,22 @@ bioc_core <- c(
   #"baySeq"
 )
 
-dev_github <- c("hadley/pryr",
-		"fboehm/qtlbim",
+dev_github <- c(#"hadley/pryr",
+		#"fboehm/qtlbim",
 		"Gregor-Mendel-Institute/MultLocMixMod",
 		"amkusmec/FarmCPUpp",
 		"jlboat/PHENIX",
 		"deruncie/MegaLMM",
 		"jendelman/GWASpoly")
-dev_github_ver <- c("0.1.6.9000",
-                    "2.1.0.9000",
+dev_github_ver <- c(#"0.1.6.9000",
+                    #"2.1.0.9000",
                     "0.1.1",
                     "1.2.0",
                     "1.0.1",
                     "0.9.5",
                     "2.14")
-
-#For MLMM
+                    
 install.packages("https://github.com/Gregor-Mendel-Institute/mlmm/files/1356516/emma_1.1.2.tar.gz", repos = NULL)
-install.packages("https://cran.r-project.org/src/contrib/Archive/MBCluster.Seq/MBCluster.Seq_1.0.tar.gz", repos = NULL)
-install.packages("https://cran.r-project.org/src/contrib/Archive/qtlpoly/qtlpoly_0.2.2.tar.gz", repos = NULL)
-install.packages("https://cran.r-project.org/src/contrib/Archive/impute/impute_1.26.0.tar.gz", repos = NULL)
 
 # ---- profile selection ----
 if (profile == "core") {
@@ -111,7 +107,14 @@ if (profile == "core") {
   #install_bioc(bioc_core)
   #install_github(dev_github)
   install_cran_ver(cran_core, cran_version)
-  install_github_ver(dev_github, dev_github_ver)
+  #install_github_ver(dev_github, dev_github_ver)
+  install_github(dev_github)
 }
+
+install.packages("https://cran.r-project.org/src/contrib/Archive/pryr/pryr_0.1.6.tar.gz", repos = NULL)
+install.packages("https://cran.r-project.org/src/contrib/Archive/qtlbim/qtlbim_2.0.7.tar.gz", repos = NULL)
+install.packages("https://cran.r-project.org/src/contrib/Archive/MBCluster.Seq/MBCluster.Seq_1.0.tar.gz", repos = NULL)
+install.packages("https://cran.r-project.org/src/contrib/Archive/qtlpoly/qtlpoly_0.2.2.tar.gz", repos = NULL)
+install.packages("https://cran.r-project.org/src/contrib/Archive/impute/impute_1.26.0.tar.gz", repos = NULL)
 
 cat("[install_optional_R] done.\n")

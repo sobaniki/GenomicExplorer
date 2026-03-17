@@ -11,7 +11,7 @@ dependencies:
   - python=3.11
   - pip=26.0.1
   - openpyxl=3.1.5
-  - pyside6=6.10.2            # GUI本体 :contentReference[oaicite:4]{index=4}
+  - pyside6=6.9.0            # GUI本体 :contentReference[oaicite:4]{index=4}
   - numpy=2.4.2
   - pandas=3.0.1
   - scipy=1.17.1
@@ -74,7 +74,7 @@ dependencies:
   - bioconductor-s4vectors=0.44.0
   - bioconductor-summarizedexperiment=1.36.0
   
-  - bioconductor-gbscleanr=2.0.3
+  #- bioconductor-gbscleanr=2.0.3
   - bioconductor-clusterseq=1.30.0
   - bioconductor-org.at.tair.db=3.20.0
   - bioconductor-bayseq=2.40.0
