@@ -6,4 +6,3 @@ GE/*/__pycache__/
 *.pdf
 *.pyc
 */__pycache__/
-GE/plugins/*/
