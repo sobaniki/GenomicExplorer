@@ -27,6 +27,7 @@ dependencies:
   - plink2=2.0.0a.6.9
   - bcftools=1.23
   - blast=2.17.0
+  - braker3=3.0.6
   - augustus=3.5.0
   - snap=2017_03_01
   - eggnog-mapper=2.1.13

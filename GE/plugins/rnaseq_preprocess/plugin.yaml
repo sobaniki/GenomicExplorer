@@ -1,0 +1,12 @@
+id: rnaseq_preprocess
+name: RNA-seq Preprocess
+version: 0.1.1
+
+description: >
+  Semi-automatic RNA-seq preprocessing: split embedded design metadata,
+  transpose sample×gene tables to gene×sample counts, and harmonize gene IDs
+  across aliases / genome versions / isoforms using alias tables, GFF3, and FASTA.
+
+runner:
+  language: python
+  entry: runner.py

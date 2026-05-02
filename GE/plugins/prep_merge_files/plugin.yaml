@@ -1,0 +1,7 @@
+id: prep_merge_files
+name: "Preprocess: Merge (phenotype/genotype)"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py

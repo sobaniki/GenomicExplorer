@@ -1,0 +1,75 @@
+id: prep_mppr_inputs
+name: 'Prep: mppR input builder (NAM/MPP)'
+version: 0.1.0
+description: 'Prepare mppR inputs from PLINK + phenotype: geno_off.tsv, geno_par.tsv,
+  marker_map.tsv, phenotype_mppr.tsv, cross_ind.tsv, par_per_cross.tsv.'
+runner:
+  language: r
+  entry: runner.R
+inputs:
+- name: plink_prefix
+  type: file
+  required: true
+- name: phenotype_path
+  type: file
+  required: true
+- name: phenotype_sheet
+  type: string
+  required: false
+- name: phenotype_id_col
+  type: string
+  required: false
+- name: cross_col
+  type: string
+  required: false
+- name: panel_col
+  type: string
+  required: false
+- name: panel_values
+  type: string
+  required: false
+- name: iid_key_delim
+  type: string
+  required: false
+- name: plink2_bin
+  type: string
+  required: false
+- name: out_dir_override
+  type: string
+  required: false
+- name: parent_select_mode
+  type: string
+  required: false
+- name: genetic_map_path
+  type: file
+  required: false
+- name: genetic_map_sheet
+  type: string
+  required: false
+- name: map_merge_mode
+  type: string
+  required: false
+- name: interpolate_missing_cm
+  type: string
+  required: false
+outputs:
+- name: geno_off_tsv
+  path: geno_off.tsv
+- name: geno_par_tsv
+  path: geno_par.tsv
+- name: marker_map_tsv
+  path: marker_map.tsv
+- name: phenotype_mppr_tsv
+  path: phenotype_mppr.tsv
+- name: cross_ind_tsv
+  path: cross_ind.tsv
+- name: par_per_cross_tsv
+  path: par_per_cross.tsv
+- name: artifacts
+  path: artifacts.json
+- name: marker_map_bp_tsv
+  path: marker_map_bp.tsv
+- name: parent_choice_tsv
+  path: parent_replicate_choice.tsv
+- name: map_report_tsv
+  path: marker_map_merge_report.tsv

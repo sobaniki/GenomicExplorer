@@ -81,7 +81,8 @@ cran_core <- c(
   "doParallel", 
   "lobstr", 
   "coda",
-  "mppR"
+  "mppR",
+  "irlba"
 )
 cran_version <- c(
   "1.0-8", 
@@ -101,7 +102,8 @@ cran_version <- c(
   "1.0.17", 
   "1.2.0", 
   "0.19-4.1",
-  "1.5.0"
+  "1.5.0",
+  "2.3.7"
 )
 
 #bioc_core <- c()

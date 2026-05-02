@@ -1,0 +1,7 @@
+id: prep_split_groups
+name: "Preprocess: Split (group-wise phenotype/sample split)"
+version: 0.1.0
+
+runner:
+  language: python
+  entry: runner.py
